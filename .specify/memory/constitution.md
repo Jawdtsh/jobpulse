@@ -1,50 +1,75 @@
-# [PROJECT_NAME] Constitution
-<!-- Example: Spec Constitution, TaskFlow Constitution, etc. -->
+# JobPulse AI Constitution
 
 ## Core Principles
 
-### [PRINCIPLE_1_NAME]
-<!-- Example: I. Library-First -->
-[PRINCIPLE_1_DESCRIPTION]
-<!-- Example: Every feature starts as a standalone library; Libraries must be self-contained, independently testable, documented; Clear purpose required - no organizational-only libraries -->
+### I. Clean Architecture (Strict Layer Separation)
+Routes layer MUST call Services layer; Services layer MUST call Repositories layer; Repositories layer MUST access Database only. No database calls from routes. No business logic in routes. Repository pattern MUST be used for all database access.
 
-### [PRINCIPLE_2_NAME]
-<!-- Example: II. CLI Interface -->
-[PRINCIPLE_2_DESCRIPTION]
-<!-- Example: Every library exposes functionality via CLI; Text in/out protocol: stdin/args → stdout, errors → stderr; Support JSON + human-readable formats -->
+### II. SOLID Principles
+Single Responsibility: each function performs ONE specific task. Open/Closed: extend via inheritance, not modification. Dependency Injection MUST be used for all services. Liskov Substitution, Interface Segregation, and Dependency Inversion principles MUST be followed.
 
-### [PRINCIPLE_3_NAME]
-<!-- Example: III. Test-First (NON-NEGOTIABLE) -->
-[PRINCIPLE_3_DESCRIPTION]
-<!-- Example: TDD mandatory: Tests written → User approved → Tests fail → Then implement; Red-Green-Refactor cycle strictly enforced -->
+### III. Clean Code Rules
+Maximum 20 lines per function. Maximum 200 lines per file. Descriptive names required (no abbreviations except standard ones). Type hints MUST be present on all functions. No magic numbers - use named constants.
 
-### [PRINCIPLE_4_NAME]
-<!-- Example: IV. Integration Testing -->
-[PRINCIPLE_4_DESCRIPTION]
-<!-- Example: Focus areas requiring integration tests: New library contract tests, Contract changes, Inter-service communication, Shared schemas -->
+### IV. Security First
+Fernet encryption REQUIRED for all CV data at rest. No secrets in code - environment variables only. Signature verification REQUIRED on all webhooks. Input validation REQUIRED on all endpoints. SQL injection prevention via parameterized queries.
 
-### [PRINCIPLE_5_NAME]
-<!-- Example: V. Observability, VI. Versioning & Breaking Changes, VII. Simplicity -->
-[PRINCIPLE_5_DESCRIPTION]
-<!-- Example: Text I/O ensures debuggability; Structured logging required; Or: MAJOR.MINOR.BUILD format; Or: Start simple, YAGNI principles -->
+### V. Configuration Management
+ALL AI model names MUST come from config/ai_models.py only. ALL settings MUST come from config/settings.py only. No hardcoded values in business logic. Configuration changes require no code modifications.
 
-## [SECTION_2_NAME]
-<!-- Example: Additional Constraints, Security Requirements, Performance Standards, etc. -->
+### VI. Language Policy
+Code, comments, and docstrings: English only. Database column names: English only. Variable and function names: English only. All user-facing text: English only.
 
-[SECTION_2_CONTENT]
-<!-- Example: Technology stack requirements, compliance standards, deployment policies, etc. -->
+### VII. Database Changes
+All schema changes via Alembic migrations only. Never modify database manually. Migration files MUST have descriptive names. Migration downgrades MUST be maintained.
 
-## [SECTION_3_NAME]
-<!-- Example: Development Workflow, Review Process, Quality Gates, etc. -->
+### VIII. Testing Requirements
+All service functions MUST have unit tests. All repository functions MUST have integration tests. Test coverage minimum 80%. Tests MUST use descriptive names. Each test case MUST test one behavior.
 
-[SECTION_3_CONTENT]
-<!-- Example: Code review requirements, testing gates, deployment approval process, etc. -->
+### IX. Error Handling
+Custom exceptions REQUIRED for business logic errors. Proper logging with context (user_id, job_id, etc.) REQUIRED. Sentry integration REQUIRED for production errors. HTTP status codes MUST match error types. Errors MUST be caught at appropriate layers.
+
+### X. Async Best Practices
+Use async/await consistently throughout codebase. No blocking operations in async functions. Proper connection pooling for database and Redis. Use asyncio.gather for concurrent operations. Connection timeouts MUST be configured.
+
+## Technology Stack
+
+**Language**: Python 3.12+
+**Frameworks**: FastAPI, aiogram 3.x, Telethon
+**Database**: PostgreSQL 16 with pgvector extension
+**Cache**: Redis
+**Task Queue**: Celery
+**AI Models**: Gemini 2.5 models (configured via config/ai_models.py)
+
+## Development Workflow
+
+All features MUST follow the specification workflow:
+1. Feature specification in .specify/specs/
+2. Implementation plan required before coding
+3. User stories MUST be independently testable
+4. Tasks organized by user story priority
+5. Constitution check REQUIRED in implementation plans
+
+### Code Quality Gates
+- Lint and typecheck MUST pass before merge
+- All tests MUST pass before merge
+- Coverage MUST meet 80% minimum
+- No hardcoded secrets or configuration values
 
 ## Governance
-<!-- Example: Constitution supersedes all other practices; Amendments require documentation, approval, migration plan -->
 
-[GOVERNANCE_RULES]
-<!-- Example: All PRs/reviews must verify compliance; Complexity must be justified; Use [GUIDANCE_FILE] for runtime development guidance -->
+This Constitution supersedes all other practices. Amendments require:
+1. Documentation of changes
+2. Approval from project maintainers
+3. Migration plan if breaking changes
+4. Version bump following semantic versioning
 
-**Version**: [CONSTITUTION_VERSION] | **Ratified**: [RATIFICATION_DATE] | **Last Amended**: [LAST_AMENDED_DATE]
-<!-- Example: Version: 2.1.1 | Ratified: 2025-06-13 | Last Amended: 2025-07-16 -->
+### Version Bumping Rules
+- MAJOR: Backward incompatible governance changes or principle removals
+- MINOR: New principle added or materially expanded guidance
+- PATCH: Clarifications, wording changes, typo fixes
+
+### Compliance
+All PRs and reviews MUST verify constitution compliance. Complexity MUST be justified in implementation plans. Reference this constitution for development decisions.
+
+**Version**: 1.0.0 | **Ratified**: 2026-03-28 | **Last Amended**: 2026-03-28

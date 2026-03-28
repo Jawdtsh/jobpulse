@@ -1,0 +1,31 @@
+# ── Web & API ─────────────────────────────────
+fastapi==0.115.8
+uvicorn[standard]==0.34.0
+
+# ── Telegram ──────────────────────────────────
+aiogram==3.26.0
+telethon==1.42.0
+
+# ── Database ──────────────────────────────────
+asyncpg==0.30.0
+pgvector==0.4.2
+alembic==1.14.1
+sqlalchemy==2.0.38
+
+# ── Cache & Tasks ─────────────────────────────
+redis==5.2.1
+celery==5.4.0
+
+# ── AI ────────────────────────────────────────
+google-generativeai==0.8.3
+openai==1.68.2
+
+# ── Utils ─────────────────────────────────────
+python-dotenv==1.1.0
+cryptography==44.0.2
+pdfplumber==0.11.5
+python-docx==1.1.2
+sentry-sdk==2.24.1
+httpx==0.28.1
+pydantic==2.11.1
+pydantic-settings==2.8.1
