@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timedelta
 from typing import Optional, Any
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.models.user_interaction import UserInteraction
 from src.repositories.base import AbstractRepository
@@ -71,15 +71,19 @@ class InteractionRepository(AbstractRepository[UserInteraction]):
         hours: int = 24,
     ) -> int:
         since = datetime.utcnow() - timedelta(hours=hours)
-        stmt = select(UserInteraction).where(
-            and_(
-                UserInteraction.user_id == user_id,
-                UserInteraction.action_type == action_type,
-                UserInteraction.created_at >= since,
+        stmt = (
+            select(func.count())
+            .select_from(UserInteraction)
+            .where(
+                and_(
+                    UserInteraction.user_id == user_id,
+                    UserInteraction.action_type == action_type,
+                    UserInteraction.created_at >= since,
+                )
             )
         )
         result = await self._session.execute(stmt)
-        return len(list(result.scalars().all()))
+        return result.scalar() or 0
 
     async def get_interactions_by_ip(
         self,

@@ -1,6 +1,6 @@
 import uuid
 from typing import Optional
-from sqlalchemy import select
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.models.user_cv import UserCV
 from src.repositories.base import AbstractRepository
@@ -47,11 +47,24 @@ class CVRepository(AbstractRepository[UserCV]):
     async def set_active_cv(
         self, cv_id: uuid.UUID, user_id: uuid.UUID
     ) -> Optional[UserCV]:
-        user_cvs = await self.get_by_user_id(user_id)
-        for cv in user_cvs:
-            cv.is_active = cv.id == cv_id
+        # Validate that cv_id belongs to user_id BEFORE any state mutation
+        stmt = select(UserCV).where(UserCV.id == cv_id, UserCV.user_id == user_id)
+        result = await self._session.execute(stmt)
+        cv = result.scalar_one_or_none()
+
+        if not cv:
+            # CV doesn't belong to user or doesn't exist
+            return None
+
+        # Deactivate all CVs for this user
+        await self._session.execute(
+            update(UserCV).where(UserCV.user_id == user_id).values(is_active=False)
+        )
+
+        # Activate the specific CV
+        cv.is_active = True
         await self._session.flush()
-        return await self.get(cv_id)
+        return cv
 
     async def update_embedding(
         self,

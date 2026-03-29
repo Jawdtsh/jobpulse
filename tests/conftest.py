@@ -4,10 +4,29 @@ import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from src.database import Base
 from config.settings import get_settings
+from urllib.parse import urlparse, urlunparse
 
 settings = get_settings()
 
-TEST_DATABASE_URL = settings.database_url.replace("/jobpulse", "/jobpulse_test")
+# Parse the database URL and safely replace the database name
+parsed_url = urlparse(settings.database_url)
+# Replace the path/dbname with jobpulse_test
+modified_path = (
+    parsed_url.path.rsplit("/", 1)[0] + "/jobpulse_test"
+    if "/" in parsed_url.path
+    else "/jobpulse_test"
+)
+# Reconstruct the URL
+TEST_DATABASE_URL = urlunparse(
+    (
+        parsed_url.scheme,
+        parsed_url.netloc,
+        modified_path,
+        parsed_url.params,
+        parsed_url.query,
+        parsed_url.fragment,
+    )
+)
 
 
 @pytest.fixture(scope="session")

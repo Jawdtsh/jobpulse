@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime
 from typing import Optional
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.models.job_match import JobMatch
 from src.repositories.base import AbstractRepository
@@ -58,11 +59,16 @@ class MatchRepository(AbstractRepository[JobMatch]):
         existing = await self.get_by_job_and_user(job_id, user_id)
         if existing:
             return None
-        return await self.create(
-            job_id=job_id,
-            user_id=user_id,
-            similarity_score=similarity_score,
-        )
+        try:
+            return await self.create(
+                job_id=job_id,
+                user_id=user_id,
+                similarity_score=similarity_score,
+            )
+        except IntegrityError:
+            # Handle concurrent duplicate inserts gracefully
+            await self._session.rollback()
+            return None
 
     async def mark_notified(self, match_id: uuid.UUID) -> Optional[JobMatch]:
         return await self.update(

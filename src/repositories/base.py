@@ -33,9 +33,16 @@ class AbstractRepository(ABC, Generic[ModelType]):
         instance = await self.get(id)
         if instance is None:
             return None
+
+        # Fail-fast: Validate that all kwargs correspond to actual model attributes
+        invalid_keys = [key for key in kwargs.keys() if not hasattr(instance, key)]
+        if invalid_keys:
+            raise ValueError(
+                f"Invalid fields for {self._model.__name__}: {invalid_keys}"
+            )
+
         for key, value in kwargs.items():
-            if hasattr(instance, key):
-                setattr(instance, key, value)
+            setattr(instance, key, value)
         await self._session.flush()
         await self._session.refresh(instance)
         return instance

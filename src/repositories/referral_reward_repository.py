@@ -46,6 +46,7 @@ class ReferralRewardRepository(AbstractRepository[ReferralReward]):
         reward_value: int,
         expires_at: datetime,
     ) -> Optional[ReferralReward]:
+        # Wrap in try/except IntegrityError block with session rollback to handle concurrent duplicate inserts gracefully
         try:
             return await self.create(
                 referrer_id=referrer_id,

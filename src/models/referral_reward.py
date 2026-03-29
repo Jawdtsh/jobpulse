@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
-from sqlalchemy import ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import CheckConstraint, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
 from src.models.base import UUIDPrimaryKeyMixin
@@ -20,6 +20,8 @@ class ReferralReward(Base, UUIDPrimaryKeyMixin):
             "reward_type",
             name="uq_referral_reward",
         ),
+        # Check constraint to ensure reward_value is positive
+        CheckConstraint("reward_value > 0", name="ck_referral_reward_positive_value"),
     )
 
     referrer_id: Mapped[uuid.UUID] = mapped_column(

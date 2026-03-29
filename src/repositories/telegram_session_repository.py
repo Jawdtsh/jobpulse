@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from typing import Optional
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.models.telegram_session import TelegramSession
 from src.repositories.base import AbstractRepository
@@ -48,14 +48,18 @@ class TelegramSessionRepository(AbstractRepository[TelegramSession]):
         return decrypt_data(session.session_string)
 
     async def mark_used(self, session_id: uuid.UUID) -> Optional[TelegramSession]:
-        session = await self.get(session_id)
-        if session is None:
-            return None
-        return await self.update(
-            session_id,
-            use_count=session.use_count + 1,
-            last_used_at=datetime.utcnow(),
+        # Use atomic DB-side increment to prevent race conditions
+        stmt = (
+            update(TelegramSession)
+            .where(TelegramSession.id == session_id)
+            .values(
+                use_count=TelegramSession.use_count + 1, last_used_at=datetime.utcnow()
+            )
+            .returning(TelegramSession)
         )
+        result = await self._session.execute(stmt)
+        await self._session.flush()
+        return result.scalar_one_or_none()
 
     async def mark_banned(
         self,

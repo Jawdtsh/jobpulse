@@ -14,12 +14,16 @@ class CoverLetterRepository(AbstractRepository[CoverLetterLog]):
     async def get_monthly_count(self, user_id: uuid.UUID) -> int:
         now = datetime.utcnow()
         month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        stmt = select(func.count(CoverLetterLog.id)).where(
-            and_(
-                CoverLetterLog.user_id == user_id,
-                CoverLetterLog.generated_at >= month_start,
+        stmt = (
+            select(func.count(CoverLetterLog.id))
+            .where(
+                and_(
+                    CoverLetterLog.user_id == user_id,
+                    CoverLetterLog.generated_at >= month_start,
+                )
             )
-        )
+            .with_for_update()
+        )  # Lock rows to prevent race conditions
         result = await self._session.execute(stmt)
         return result.scalar() or 0
 
