@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING
-from sqlalchemy import Boolean, ForeignKey, Numeric, UniqueConstraint
+from sqlalchemy import Boolean, Float, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
 from src.models.base import UUIDPrimaryKeyMixin
@@ -26,7 +26,7 @@ class JobMatch(Base, UUIDPrimaryKeyMixin):
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
     )
-    similarity_score: Mapped[float] = mapped_column(Numeric(3, 2), nullable=False)
+    similarity_score: Mapped[float] = mapped_column(Float, nullable=False)
     is_notified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     notified_at: Mapped[datetime | None] = mapped_column(nullable=True)
     is_clicked: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

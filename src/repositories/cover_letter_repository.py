@@ -8,7 +8,7 @@ from src.repositories.base import AbstractRepository
 
 
 class CoverLetterRepository(AbstractRepository[CoverLetterLog]):
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: AsyncSession) -> None:
         super().__init__(session, CoverLetterLog)
 
     async def get_monthly_count(self, user_id: uuid.UUID) -> int:

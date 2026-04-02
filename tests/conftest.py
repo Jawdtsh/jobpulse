@@ -4,15 +4,14 @@ import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from src.database import Base
+import src.models  # noqa: F401
 from urllib.parse import urlparse, urlunparse
 
 
 def _get_test_database_url():
     database_url = os.getenv("DATABASE_URL")
     if not database_url:
-        raise EnvironmentError(
-            "DATABASE_URL environment variable is required for tests"
-        )
+        raise OSError("DATABASE_URL environment variable is required for tests")
     parsed_url = urlparse(database_url)
     modified_path = (
         "/jobpulse_test"

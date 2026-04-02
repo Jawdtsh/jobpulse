@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 from typing import TYPE_CHECKING
-from sqlalchemy import ForeignKey, Integer, String
+from sqlalchemy import DateTime, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
 from src.models.base import UUIDPrimaryKeyMixin, TimestampMixin
@@ -26,8 +26,12 @@ class Subscription(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     payment_id: Mapped[str | None] = mapped_column(
         String(255), unique=True, nullable=True
     )
-    valid_from: Mapped[datetime] = mapped_column(nullable=False)
-    valid_until: Mapped[datetime] = mapped_column(nullable=False)
+    valid_from: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+    valid_until: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
     status: Mapped[str] = mapped_column(String(20), default="active", nullable=False)
 
     user: Mapped["User"] = relationship("User", back_populates="subscriptions")

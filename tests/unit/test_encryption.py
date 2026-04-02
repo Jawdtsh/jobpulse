@@ -33,7 +33,7 @@ class TestEncryption:
             decrypt_data("aW52YWxpZF9lbmNyeXB0ZWRfZGF0YQ==")
 
     def test_decrypt_invalid_base64_raises_value_error(self):
-        with pytest.raises(ValueError, match="not valid base64"):
+        with pytest.raises(ValueError, match="ciphertext is corrupted"):
             decrypt_data("!!!not-base64!!!")
 
     def test_get_fernet_returns_singleton(self):

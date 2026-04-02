@@ -8,7 +8,7 @@ from src.repositories.base import AbstractRepository
 
 
 class InteractionRepository(AbstractRepository[UserInteraction]):
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: AsyncSession) -> None:
         super().__init__(session, UserInteraction)
 
     async def get_interactions_by_user(

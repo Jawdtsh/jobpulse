@@ -7,7 +7,7 @@ from src.repositories.base import AbstractRepository
 
 
 class ArchivedJobRepository(AbstractRepository[ArchivedJob]):
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: AsyncSession) -> None:
         super().__init__(session, ArchivedJob)
 
     async def get_by_original_job_id(

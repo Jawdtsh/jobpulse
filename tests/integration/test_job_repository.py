@@ -113,7 +113,7 @@ class TestJobRepository:
         )
         archived = await job_repo.archive_job(job.id)
         assert archived is not None
-        assert archived.is_archived == True
+        assert archived.is_archived
 
     @pytest.mark.asyncio
     async def test_update_embedding(self, job_repo: JobRepository):

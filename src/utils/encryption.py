@@ -1,4 +1,3 @@
-import base64
 from functools import lru_cache
 from cryptography.fernet import Fernet, InvalidToken
 from config.settings import get_settings
@@ -9,7 +8,7 @@ def get_fernet() -> Fernet:
     settings = get_settings()
     key = settings.fernet_key
     if not key:
-        raise EnvironmentError(
+        raise OSError(
             "FERNET_KEY is not configured. Set it in .env or environment variables."
         )
     return Fernet(key.encode() if isinstance(key, str) else key)
@@ -18,17 +17,13 @@ def get_fernet() -> Fernet:
 def encrypt_data(data: str) -> str:
     fernet = get_fernet()
     encrypted_bytes = fernet.encrypt(data.encode("utf-8"))
-    return base64.b64encode(encrypted_bytes).decode("ascii")
+    return encrypted_bytes.decode("ascii")
 
 
 def decrypt_data(encrypted_data: str) -> str:
     fernet = get_fernet()
     try:
-        encrypted_bytes = base64.b64decode(encrypted_data.encode("ascii"))
-    except Exception as exc:
-        raise ValueError(f"Invalid encrypted data: not valid base64. {exc}") from exc
-    try:
-        return fernet.decrypt(encrypted_bytes).decode("utf-8")
+        return fernet.decrypt(encrypted_data.encode("ascii")).decode("utf-8")
     except InvalidToken as exc:
         raise ValueError(
             "Decryption failed: ciphertext is corrupted or was encrypted with a different key."

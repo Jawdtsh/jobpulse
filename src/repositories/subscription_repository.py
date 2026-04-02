@@ -8,7 +8,7 @@ from src.repositories.base import AbstractRepository
 
 
 class SubscriptionRepository(AbstractRepository[Subscription]):
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: AsyncSession) -> None:
         super().__init__(session, Subscription)
 
     async def get_active_subscription(
