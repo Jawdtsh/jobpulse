@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -69,7 +69,7 @@ class ChannelRepository(AbstractRepository[MonitoredChannel]):
     async def mark_scraped(self, channel_id: uuid.UUID) -> Optional[MonitoredChannel]:
         return await self.update(
             channel_id,
-            last_scraped_at=datetime.utcnow(),
+            last_scraped_at=datetime.now(timezone.utc),
         )
 
     async def deactivate(self, channel_id: uuid.UUID) -> Optional[MonitoredChannel]:

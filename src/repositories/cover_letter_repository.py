@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,18 +12,14 @@ class CoverLetterRepository(AbstractRepository[CoverLetterLog]):
         super().__init__(session, CoverLetterLog)
 
     async def get_monthly_count(self, user_id: uuid.UUID) -> int:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        stmt = (
-            select(func.count(CoverLetterLog.id))
-            .where(
-                and_(
-                    CoverLetterLog.user_id == user_id,
-                    CoverLetterLog.generated_at >= month_start,
-                )
+        stmt = select(func.count(CoverLetterLog.id)).where(
+            and_(
+                CoverLetterLog.user_id == user_id,
+                CoverLetterLog.generated_at >= month_start,
             )
-            .with_for_update()
-        )  # Lock rows to prevent race conditions
+        )
         result = await self._session.execute(stmt)
         return result.scalar() or 0
 
@@ -60,8 +56,8 @@ class CoverLetterRepository(AbstractRepository[CoverLetterLog]):
         user_id: uuid.UUID,
         monthly_limit: int,
     ) -> bool:
-        count = await self.get_monthly_count(user_id)
-        return count < monthly_limit
+        logs = await self.get_logs_for_update(user_id)
+        return len(logs) < monthly_limit
 
     async def get_logs_for_update(
         self,
@@ -69,7 +65,7 @@ class CoverLetterRepository(AbstractRepository[CoverLetterLog]):
         month: Optional[datetime] = None,
     ) -> list[CoverLetterLog]:
         if month is None:
-            month = datetime.utcnow()
+            month = datetime.now(timezone.utc)
         month_start = month.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         stmt = (
             select(CoverLetterLog)

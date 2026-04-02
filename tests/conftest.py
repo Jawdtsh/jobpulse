@@ -1,32 +1,34 @@
 import asyncio
+import os
 import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from src.database import Base
-from config.settings import get_settings
 from urllib.parse import urlparse, urlunparse
 
-settings = get_settings()
 
-# Parse the database URL and safely replace the database name
-parsed_url = urlparse(settings.database_url)
-# Replace the path/dbname with jobpulse_test
-modified_path = (
-    parsed_url.path.rsplit("/", 1)[0] + "/jobpulse_test"
-    if "/" in parsed_url.path
-    else "/jobpulse_test"
-)
-# Reconstruct the URL
-TEST_DATABASE_URL = urlunparse(
-    (
-        parsed_url.scheme,
-        parsed_url.netloc,
-        modified_path,
-        parsed_url.params,
-        parsed_url.query,
-        parsed_url.fragment,
+def _get_test_database_url():
+    database_url = os.getenv("DATABASE_URL")
+    if not database_url:
+        raise EnvironmentError(
+            "DATABASE_URL environment variable is required for tests"
+        )
+    parsed_url = urlparse(database_url)
+    modified_path = (
+        "/jobpulse_test"
+        if not parsed_url.path
+        else (parsed_url.path.rsplit("/", 1)[0] + "/jobpulse_test")
     )
-)
+    return urlunparse(
+        (
+            parsed_url.scheme,
+            parsed_url.netloc,
+            modified_path,
+            parsed_url.params,
+            parsed_url.query,
+            parsed_url.fragment,
+        )
+    )
 
 
 @pytest.fixture(scope="session")
@@ -38,7 +40,13 @@ def event_loop():
 
 @pytest_asyncio.fixture(scope="function")
 async def async_engine():
-    engine = create_async_engine(TEST_DATABASE_URL, echo=False)
+    test_db_url = _get_test_database_url()
+    engine = create_async_engine(
+        test_db_url,
+        echo=False,
+        pool_size=5,
+        max_overflow=10,
+    )
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield engine

@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, TYPE_CHECKING
 from sqlalchemy import ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -34,7 +34,7 @@ class ArchivedJob(Base, UUIDPrimaryKeyMixin):
     skills: Mapped[list[str]] = mapped_column(JSONB, default=list, nullable=False)
     content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
     archived_at: Mapped[datetime] = mapped_column(
-        nullable=False, default=datetime.utcnow
+        nullable=False, default=lambda: datetime.now(timezone.utc)
     )
     archive_reason: Mapped[str] = mapped_column(String(50), nullable=False)
 

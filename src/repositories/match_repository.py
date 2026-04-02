@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -60,26 +60,25 @@ class MatchRepository(AbstractRepository[JobMatch]):
         if existing:
             return None
         try:
-            return await self.create(
-                job_id=job_id,
-                user_id=user_id,
-                similarity_score=similarity_score,
-            )
+            async with self._session.begin_nested():
+                return await self.create(
+                    job_id=job_id,
+                    user_id=user_id,
+                    similarity_score=similarity_score,
+                )
         except IntegrityError:
-            # Handle concurrent duplicate inserts gracefully
-            await self._session.rollback()
             return None
 
     async def mark_notified(self, match_id: uuid.UUID) -> Optional[JobMatch]:
         return await self.update(
             match_id,
             is_notified=True,
-            notified_at=datetime.utcnow(),
+            notified_at=datetime.now(timezone.utc),
         )
 
     async def mark_clicked(self, match_id: uuid.UUID) -> Optional[JobMatch]:
         return await self.update(
             match_id,
             is_clicked=True,
-            clicked_at=datetime.utcnow(),
+            clicked_at=datetime.now(timezone.utc),
         )

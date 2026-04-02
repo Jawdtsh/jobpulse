@@ -1,13 +1,12 @@
 # JobPulse AI CodeRabbit Configuration
-# Version: 1.0.0 (Aligned with Constitution v1.0.0)
+# Version: 1.1.0 (Aligned with Constitution & Clean Code Standards)
 
 language: "en-US"
 
 reviews:
-  profile: "assertive" # جعل المراجعة حازمة لضمان الالتزام الصارم بالدستور
+  profile: "assertive" 
   request_review_command: "review"
   
-  # التوجيهات المخصصة بناءً على الدستور
   instructions: |
     You are the Lead Security & Architecture Auditor for JobPulse AI. 
     Your mission is to enforce the 'JobPulse AI Constitution' with zero tolerance for deviations.
@@ -26,35 +25,34 @@ reviews:
        - Check for IDOR vulnerabilities: verify that `user_id` ownership is checked for all resource access (CVs, Letters).
     
     4. **Advanced Clean Code & Refactoring**:
-       - **Function Purity**: Flag functions that try to do more than one thing. If a function name contains "and" (e.g., `validate_and_save`), suggest splitting it.
-       - **Cyclomatic Complexity**: Flag any function with more than 3 nested `if/for/while` blocks. Suggest extracting inner logic into private methods.
-       - **Early Returns**: Encourage the 'Bouncer Pattern'. Flag deep `if-else` nesting; suggest using guard clauses (early returns) to keep the 'happy path' non-indented.
-       - **Boolean Cleanliness**: Flag negative boolean names (e.g., `is_not_active`). Suggest positive naming (`is_active`) to avoid double negatives in logic.
-       - **Argument Count**: Flag any function/method with more than 4 arguments. Suggest using a `Dataclass` or `Pydantic` model to group related parameters.
-       - **Side Effects**: In the Repository layer, flag any method that performs a `commit()` if it's supposed to be a 'read-only' query.
-       - **Meaningful Names**: Flag generic variable names like `data`, `item`, `value`, or `temp`. Demand context-specific names (e.g., `user_cv_payload`).
-       - **Comment Smells**: Flag comments that explain "What" the code is doing (the code should be self-explanatory). Only allow comments that explain "Why" a non-obvious decision was made.
-       - **DRY (Don't Repeat Yourself)**: If you see similar logic blocks repeated in different repositories, suggest moving them to `AbstractRepository` or a `Utility` helper.
+       - **Function Purity**: Flag functions that do more than one thing. If a name has "and", suggest splitting it.
+       - **Complexity**: Flag functions with > 3 nested blocks or > 20 lines.
+       - **Bouncer Pattern**: Encourage Guard Clauses to keep the 'happy path' non-indented.
+       - **Boolean Cleanliness**: Flag negative names like `is_not_active`; suggest `is_active`.
+       - **Argument Count**: Flag functions with > 4 arguments. Suggest Pydantic models.
+       - **Side Effects**: Flag `commit()` in methods that should be read-only.
+       - **Meaningful Names**: Forbid 'data', 'temp', 'value'. Demand context (e.g., 'encrypted_payload').
+       - **DRY**: Suggest moving repeated logic to `AbstractRepository`.
 
-    5. **Configuration**:
+    5. **Configuration & AI Models**:
        - No hardcoded Model Names or Settings. Must use `src.config.ai_models` or `src.config.settings`.
+       - **Vector Safety**: If embedding vectors are used, verify they match expected dimensions (e.g., 768 for Gemini).
     
-    6. **Error Handling**:
-       - Ensure custom exceptions are used for business logic, not generic ones.
-       - Check for proper UTC handling: use `datetime.now(timezone.utc)`.
+    6. **Error Handling & Time**:
+       - Ensure custom exceptions are used for business logic.
+       - STRICT UTC: Check for `datetime.now(timezone.utc)`. Flag `datetime.utcnow()` as it is deprecated in Python 3.12+.
 
     7. **Testing**:
        - Verify that every new service function has a corresponding unit test.
-       - Ensure Test DB isolation logic (urllib.parse) is maintained in conftest.py.
+       - Ensure Test DB isolation logic is maintained in conftest.py.
 
-  # إعدادات الـ Chat والذكاء الاصطناعي
   chat:
     enabled: true
-    allow_unrelated_questions: false # منعه من الإجابة على أسئلة خارج نطاق الكود لتركيز القوة الحسابية
+    allow_unrelated_questions: false
 
-# منع مراجعة الملفات التي قد تسبب ضجيجاً غير ضروري
 tools:
   github-review:
     exclude:
+      - "**/venv/**"            # استثناء ملفات البيئة الافتراضية
       - "*.md"
       - "LICENSE"

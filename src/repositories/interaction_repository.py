@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Any
 from sqlalchemy import select, and_, func
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -34,7 +34,7 @@ class InteractionRepository(AbstractRepository[UserInteraction]):
         user_id: uuid.UUID,
         hours: int = 24,
     ) -> list[UserInteraction]:
-        since = datetime.utcnow() - timedelta(hours=hours)
+        since = datetime.now(timezone.utc) - timedelta(hours=hours)
         stmt = (
             select(UserInteraction)
             .where(
@@ -70,7 +70,7 @@ class InteractionRepository(AbstractRepository[UserInteraction]):
         action_type: str,
         hours: int = 24,
     ) -> int:
-        since = datetime.utcnow() - timedelta(hours=hours)
+        since = datetime.now(timezone.utc) - timedelta(hours=hours)
         stmt = (
             select(func.count())
             .select_from(UserInteraction)
@@ -90,7 +90,7 @@ class InteractionRepository(AbstractRepository[UserInteraction]):
         ip_address: str,
         hours: int = 24,
     ) -> list[UserInteraction]:
-        since = datetime.utcnow() - timedelta(hours=hours)
+        since = datetime.now(timezone.utc) - timedelta(hours=hours)
         stmt = (
             select(UserInteraction)
             .where(

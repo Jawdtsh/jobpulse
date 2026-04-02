@@ -44,8 +44,8 @@ description: "Task list for technical debt and security hardening refinement"
 
 - [x] T010 Replace read-then-write increments with atomic DB-side increments in ChannelRepository.update_stats in src/repositories/channel_repository.py
 - [x] T011 Replace read-then-write increments with atomic DB-side increments in TelegramSessionRepository.mark_used in src/repositories/telegram_session_repository.py
-- [x] T12 Wrap MatchRepository.create_match in try/except IntegrityError block with session rollback in src/repositories/match_repository.py
-- [x] T13 Wrap ReferralRewardRepository.create_reward in try/except IntegrityError block with session rollback in src/repositories/referral_reward_repository.py
+- [x] T12 Wrap MatchRepository.create_match in try/except IntegrityError block with SAVEPOINT (begin_nested) instead of session.rollback() in src/repositories/match_repository.py
+- [x] T13 Wrap ReferralRewardRepository.create_reward in try/except IntegrityError block with SAVEPOINT (begin_nested) instead of session.rollback() in src/repositories/referral_reward_repository.py
 - [x] T14 Fix Quota Race in CoverLetterRepository: Use with_for_update() when counting monthly logs in src/repositories/cover_letter_repository.py
 
 ## Phase 4: Performance Optimizations
@@ -58,8 +58,8 @@ description: "Task list for technical debt and security hardening refinement"
 
 **Purpose**: Protect test environment and prevent data loss
 
-- [x] T16 Refactor tests/conftest.py to use urllib.parse for deriving TEST_DATABASE_URL in tests/integration/conftest.py
-- [x] T17 Ensure TEST_DATABASE_URL only replaces DB name with jobpulse_test to prevent production data leakage
+- [x] T16 Refactor tests/conftest.py to use urllib.parse for deriving TEST_DATABASE_URL from os.getenv("DATABASE_URL") with fail-fast EnvironmentError
+- [x] T17 Ensure TEST_DATABASE_URL hardcodes jobpulse_test (not configurable) to prevent production data leakage, with pool_size=5, max_overflow=10
 
 ## Phase 6: Verification
 
@@ -78,6 +78,54 @@ description: "Task list for technical debt and security hardening refinement"
 - [x] T23 Update docstrings for modified methods to reflect new behavior
 - [x] T24 Ensure all changes follow existing code style and conventions
 - [x] T25 Run linting and type checking to maintain code quality
+
+## Phase 8: Bugfix - Auto-Archive Trigger Counting Logic
+
+**Purpose**: Fix PostgreSQL trigger that incorrectly archives jobs after 1 report instead of 3 unique reports (US9-AC2 violation)
+
+- [x] T26 Fix PL/pgSQL trigger in migrations/versions/004_job_reports_trigger.py: replace PERFORM+FOUND with DECLARE+SELECT INTO for correct COUNT(DISTINCT reporter_user_id)
+- [x] T27 [P] Fix ReportRepository.should_auto_archive and rename count_reports_for_job to count_unique_reporters_for_job using COUNT(DISTINCT) in src/repositories/report_repository.py
+- [x] T28 [P] Add integration tests for report repository in tests/integration/test_report_repository.py covering: report creation, duplicate rejection, unique reporter counting, auto-archive threshold (2 reports = no archive, 3 reports = archive)
+- [x] T29 [P] Update spec.md US9-AC2 and FR-009 to clarify trigger uses COUNT(DISTINCT reporter_user_id)
+- [x] T30 Run unit tests and linting to verify no regressions
+
+## Phase 9: Bugfix - Savepoint for IntegrityError Handlers
+
+**Purpose**: Replace session.rollback() with begin_nested() SAVEPOINTs in IntegrityError handlers to prevent destroying all uncommitted operations in the shared session (Constitution Principle I & IX)
+
+- [x] T31 Replace rollback() with begin_nested() in MatchRepository.create_match in src/repositories/match_repository.py
+- [x] T32 [P] Replace rollback() with begin_nested() in ReferralRewardRepository.create_reward in src/repositories/referral_reward_repository.py
+- [x] T33 [P] Add integration tests for match repository in tests/integration/test_match_repository.py covering: match creation, duplicate rejection, session survival after duplicate
+- [x] T34 [P] Add test_session_survives_duplicate_reward to tests/integration/test_referral_reward_repository.py
+- [x] T35 [P] Update spec.md US4-AC1, US6-AC1, and add FR-017 for SAVEPOINT requirement
+- [x] T36 Run unit tests and linting to verify no regressions
+
+## Phase 10: Bugfix - Eliminate N+1 Query in find_similar
+
+**Purpose**: Replace N+1 raw SQL + per-row self.get() loop with single pgvector ORM query using cosine_distance (Constitution Principle X — no N+1 queries inside async loops)
+
+- [x] T37 Replace raw text() SQL + loop in JobRepository.find_similar with ORM query using Job.embedding_vector.cosine_distance() in src/repositories/job_repository.py
+- [x] T38 [P] Add integration tests for find_similar in tests/integration/test_job_repository.py covering: returns jobs with scores, excludes archived, respects limit, returns empty for no matches
+- [x] T39 [P] Update spec.md SC-002 to document single-query ORM approach, add FR-018 for no N+1 queries
+- [x] T40 Run unit tests and linting to verify no regressions
+
+## Phase 11: Bugfix - Query Defects in count_by_reason and check_quota_available
+
+**Purpose**: Fix two query defects: (1) count_by_reason fetches all rows into memory instead of using COUNT(*), (2) get_monthly_count uses WITH FOR UPDATE on COUNT which locks nothing; check_quota_available must use get_logs_for_update for proper row locking (Constitution Principle X)
+
+- [x] T41 Replace len(list(result.scalars().all())) with select(func.count()) in ArchivedJobRepository.count_by_reason in src/repositories/archived_job_repository.py
+- [x] T42 [P] Remove meaningless with_for_update() from get_monthly_count and refactor check_quota_available to use get_logs_for_update in src/repositories/cover_letter_repository.py
+- [x] T43 [P] Update spec.md FR-019 for database-level COUNT and proper row locking
+- [x] T44 Run unit tests and linting to verify no regressions
+
+## Phase 12: Bugfix - Replace deprecated datetime.utcnow()
+
+**Purpose**: Replace all 17 occurrences of deprecated `datetime.utcnow()` with timezone-aware `datetime.now(timezone.utc)` across 13 files to comply with FR-015 and Python 3.12+ deprecation
+
+- [x] T45 [P] Fix 5 model files Pattern A (default=datetime.utcnow → default=lambda: datetime.now(timezone.utc)): src/models/job_match.py, src/models/job_report.py, src/models/cover_letter_log.py, src/models/referral_reward.py, src/models/user_interaction.py, src/models/archived_job.py
+- [x] T46 [P] Fix 7 repository files Pattern B (datetime.utcnow() → datetime.now(timezone.utc)): src/repositories/match_repository.py, src/repositories/cover_letter_repository.py, src/repositories/referral_reward_repository.py, src/repositories/interaction_repository.py, src/repositories/subscription_repository.py, src/repositories/channel_repository.py, src/repositories/telegram_session_repository.py
+- [x] T47 [P] Update spec.md FR-015 to require datetime.now(timezone.utc)
+- [x] T48 Run unit tests and linting to verify no regressions
 
 ---
 

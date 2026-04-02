@@ -64,7 +64,7 @@ As a system, I need a job_matches table to track which jobs matched which users 
 
 **Acceptance Scenarios**:
 
-1. **Given** a match is found between a job and user, **When** the match is recorded, **Then** similarity score (0.0-1.0) is stored.
+1. **Given** a match is found between a job and user, **When** the match is recorded, **Then** similarity score (0.0-1.0) is stored and duplicate matches are rejected gracefully via SAVEPOINT (begin_nested) without destroying the outer transaction.
 2. **Given** user needs to see match history, **When** querying job_matches, **Then** notification timestamps indicate which matches were sent to the user.
 
 ---
@@ -94,7 +94,7 @@ As a system, I need a referral_rewards table to prevent duplicate reward claims 
 
 **Acceptance Scenarios**:
 
-1. **Given** a user refers another user, **When** a reward is claimed, **Then** UNIQUE constraint prevents duplicate (referrer_id, referred_user_id, reward_type) combinations.
+1. **Given** a user refers another user, **When** a reward is claimed, **Then** UNIQUE constraint prevents duplicate (referrer_id, referred_user_id, reward_type) combinations and duplicate inserts are rejected gracefully via SAVEPOINT (begin_nested) without destroying the outer transaction.
 2. **Given** a referral reward is processed, **When** status changes, **Then** reward can be marked as pending, applied, or expired.
 
 ---
@@ -140,7 +140,7 @@ As a system, I need a job_reports table so that users can report suspicious job 
 **Acceptance Scenarios**:
 
 1. **Given** a user reports a job, **When** the report is submitted, **Then** report reason and timestamp are stored.
-2. **Given** a job receives multiple reports, **When** 3 unique users report the same job, **Then** the job is auto-archived.
+2. **Given** a job receives multiple reports, **When** 3 unique users report the same job, **Then** a PostgreSQL trigger (`archive_job_on_three_reports`) auto-archives the job by inserting into `archived_jobs` with `archive_reason='reported'` and deleting from `jobs`. The trigger uses `SELECT COUNT(DISTINCT reporter_user_id) INTO report_count` to correctly count unique reporters.
 
 ---
 
@@ -209,14 +209,17 @@ As a system, I need a monitored_channels table to track data sources so that scr
 - **FR-006**: System MUST create referral_rewards table with UNIQUE constraint on (referrer_id, referred_user_id, reward_type)
 - **FR-007**: System MUST create cover_letter_logs table with timestamp for monthly quota counting
 - **FR-008**: System MUST create user_interactions table with IP address and user agent for fraud detection
-- **FR-009**: System MUST create job_reports table with auto-archive trigger after 3 unique reports
+- **FR-009**: System MUST create job_reports table with PostgreSQL trigger that auto-archives jobs after 3 **unique** user reports (using COUNT(DISTINCT reporter_user_id))
 - **FR-010**: System MUST create archived_jobs table matching jobs structure for data retention
 - **FR-011**: System MUST create telegram_sessions table with encrypted session strings and rotation tracking
 - **FR-012**: System MUST create monitored_channels table with performance metrics (jobs_found, false_positives)
 - **FR-013**: System MUST use HNSW index with m=16, ef_construction=64 on all vector columns
 - **FR-014**: System MUST use Alembic for all schema migrations
-- **FR-015**: System MUST store all timestamps in UTC
+- **FR-015**: System MUST store all timestamps in UTC using `datetime.now(timezone.utc)` (not the deprecated `datetime.utcnow()`) to produce timezone-aware datetimes for correct PostgreSQL TIMESTAMPTZ comparisons
 - **FR-016**: System MUST implement Fernet encryption for CV content and Telegram session strings
+- **FR-017**: Repository IntegrityError handlers MUST use SAVEPOINTs (begin_nested) instead of session.rollback() to preserve uncommitted operations in the shared session
+- **FR-018**: Vector similarity queries (e.g. find_similar) MUST use a single ORM query with pgvector's cosine_distance, not N+1 raw SQL queries with per-row lookups
+- **FR-019**: Count queries MUST use SELECT COUNT(*) at the database level, not fetch all rows into Python memory. Quota-locking MUST use FOR UPDATE on actual rows (via get_logs_for_update), not on COUNT(*) aggregates which lock nothing.
 
 ### Key Entities *(include if feature involves data)*
 
@@ -238,7 +241,7 @@ As a system, I need a monitored_channels table to track data sources so that scr
 ### Measurable Outcomes
 
 - **SC-001**: All 12 tables can be created via Alembic migration without errors
-- **SC-002**: Vector similarity search on jobs and user_cvs returns results within 500ms for datasets up to 100,000 records
+- **SC-002**: Vector similarity search on jobs and user_cvs returns results within 500ms for datasets up to 100,000 records (single-query ORM approach via pgvector's `cosine_distance`, no N+1 queries)
 - **SC-003**: Referral reward UNIQUE constraint prevents duplicate rewards under concurrent load
 - **SC-004**: User interaction queries perform efficiently with indexes supporting sub-second response for fraud detection
 - **SC-005**: Job archive process completes within 5 minutes for batches of up to 10,000 jobs

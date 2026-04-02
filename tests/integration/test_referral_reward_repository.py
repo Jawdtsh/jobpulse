@@ -1,9 +1,7 @@
 import pytest
 import pytest_asyncio
-import uuid
 from datetime import datetime, timedelta
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.exc import IntegrityError
 from src.repositories.user_repository import UserRepository
 from src.repositories.referral_reward_repository import ReferralRewardRepository
 
@@ -159,6 +157,38 @@ class TestReferralRewardRepository:
         assert len(pending) == 1
 
     @pytest.mark.asyncio
+    async def test_session_survives_duplicate_reward(
+        self,
+        referral_repo: ReferralRewardRepository,
+        user_repo: UserRepository,
+        referrer,
+        referred_user,
+        async_session: AsyncSession,
+    ):
+        expires = datetime.utcnow() + timedelta(days=30)
+        await referral_repo.create_reward(
+            referrer_id=referrer.id,
+            referred_user_id=referred_user.id,
+            reward_type="credits",
+            reward_value=100,
+            expires_at=expires,
+        )
+        duplicate = await referral_repo.create_reward(
+            referrer_id=referrer.id,
+            referred_user_id=referred_user.id,
+            reward_type="credits",
+            reward_value=200,
+            expires_at=expires,
+        )
+        assert duplicate is None
+        post_dupe_user = await user_repo.create_user(
+            telegram_id=999999999,
+            first_name="PostDuplicate",
+        )
+        assert post_dupe_user is not None
+        assert post_dupe_user.first_name == "PostDuplicate"
+
+    @pytest.mark.asyncio
     async def test_check_duplicate_reward(
         self,
         referral_repo: ReferralRewardRepository,
@@ -177,11 +207,11 @@ class TestReferralRewardRepository:
             referred_user.id,
             "credits",
         )
-        assert is_duplicate == True
+        assert is_duplicate is True
 
         is_duplicate_other = await referral_repo.check_duplicate_reward(
             referrer.id,
             referred_user.id,
             "subscription_month",
         )
-        assert is_duplicate_other == False
+        assert is_duplicate_other is False

@@ -28,8 +28,10 @@ class ReportRepository(AbstractRepository[JobReport]):
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
 
-    async def count_reports_for_job(self, job_id: uuid.UUID) -> int:
-        stmt = select(func.count(JobReport.id)).where(JobReport.job_id == job_id)
+    async def count_unique_reporters_for_job(self, job_id: uuid.UUID) -> int:
+        stmt = select(func.count(JobReport.reporter_user_id.distinct())).where(
+            JobReport.job_id == job_id
+        )
         result = await self._session.execute(stmt)
         return result.scalar() or 0
 
@@ -62,5 +64,5 @@ class ReportRepository(AbstractRepository[JobReport]):
         )
 
     async def should_auto_archive(self, job_id: uuid.UUID, threshold: int = 3) -> bool:
-        count = await self.count_reports_for_job(job_id)
+        count = await self.count_unique_reporters_for_job(job_id)
         return count >= threshold

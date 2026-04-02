@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from sqlalchemy import select, and_, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -38,14 +38,14 @@ class TelegramSessionRepository(AbstractRepository[TelegramSession]):
         session_string: str,
         phone_number: str,
     ) -> TelegramSession:
-        encrypted_session = encrypt_data(session_string)
+        encrypted_session = encrypt_data(session_string).encode("utf-8")
         return await self.create(
             session_string=encrypted_session,
             phone_number=phone_number,
         )
 
     def decrypt_session(self, session: TelegramSession) -> str:
-        return decrypt_data(session.session_string)
+        return decrypt_data(session.session_string.decode("utf-8"))
 
     async def mark_used(self, session_id: uuid.UUID) -> Optional[TelegramSession]:
         # Use atomic DB-side increment to prevent race conditions
@@ -53,7 +53,8 @@ class TelegramSessionRepository(AbstractRepository[TelegramSession]):
             update(TelegramSession)
             .where(TelegramSession.id == session_id)
             .values(
-                use_count=TelegramSession.use_count + 1, last_used_at=datetime.utcnow()
+                use_count=TelegramSession.use_count + 1,
+                last_used_at=datetime.now(timezone.utc),
             )
             .returning(TelegramSession)
         )

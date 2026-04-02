@@ -1,6 +1,6 @@
 import uuid
 from typing import Optional
-from sqlalchemy import select, text
+from sqlalchemy import select, literal
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.models.job import Job
 from src.repositories.base import AbstractRepository
@@ -71,30 +71,20 @@ class JobRepository(AbstractRepository[Job]):
         threshold: float = 0.8,
         limit: int = 10,
     ) -> list[tuple[Job, float]]:
-        embedding_str = str(embedding_vector)
-        stmt = text("""
-            SELECT id, source_channel_id, telegram_message_id, title, company,
-                   location, salary_min, salary_max, salary_currency, description,
-                   requirements, skills, content_hash, is_archived, created_at, updated_at,
-                   1 - (embedding_vector <=> :embedding::vector) as similarity
-            FROM jobs
-            WHERE is_archived = FALSE
-              AND embedding_vector IS NOT NULL
-              AND 1 - (embedding_vector <=> :embedding::vector) >= :threshold
-            ORDER BY embedding_vector <=> :embedding::vector
-            LIMIT :limit
-        """)
-        result = await self._session.execute(
-            stmt,
-            {"embedding": embedding_str, "threshold": threshold, "limit": limit},
+        distance = Job.embedding_vector.cosine_distance(embedding_vector)
+        similarity = literal(1.0) - distance
+        stmt = (
+            select(Job, similarity.label("similarity"))
+            .where(
+                Job.is_archived == False,
+                Job.embedding_vector.isnot(None),
+                similarity >= threshold,
+            )
+            .order_by(distance)
+            .limit(limit)
         )
-        rows = result.fetchall()
-        jobs_with_scores = []
-        for row in rows:
-            job = await self.get(row.id)
-            if job:
-                jobs_with_scores.append((job, row.similarity))
-        return jobs_with_scores
+        result = await self._session.execute(stmt)
+        return [(row[0], row[1]) for row in result.all()]
 
     async def archive_job(self, job_id: uuid.UUID) -> Optional[Job]:
         return await self.update(job_id, is_archived=True)

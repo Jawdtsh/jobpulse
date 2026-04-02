@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -46,24 +46,23 @@ class ReferralRewardRepository(AbstractRepository[ReferralReward]):
         reward_value: int,
         expires_at: datetime,
     ) -> Optional[ReferralReward]:
-        # Wrap in try/except IntegrityError block with session rollback to handle concurrent duplicate inserts gracefully
         try:
-            return await self.create(
-                referrer_id=referrer_id,
-                referred_user_id=referred_user_id,
-                reward_type=reward_type,
-                reward_value=reward_value,
-                expires_at=expires_at,
-            )
+            async with self._session.begin_nested():
+                return await self.create(
+                    referrer_id=referrer_id,
+                    referred_user_id=referred_user_id,
+                    reward_type=reward_type,
+                    reward_value=reward_value,
+                    expires_at=expires_at,
+                )
         except IntegrityError:
-            await self._session.rollback()
             return None
 
     async def apply_reward(self, reward_id: uuid.UUID) -> Optional[ReferralReward]:
         return await self.update(
             reward_id,
             status="applied",
-            applied_at=datetime.utcnow(),
+            applied_at=datetime.now(timezone.utc),
         )
 
     async def expire_reward(self, reward_id: uuid.UUID) -> Optional[ReferralReward]:

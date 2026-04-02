@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,7 +14,7 @@ class SubscriptionRepository(AbstractRepository[Subscription]):
     async def get_active_subscription(
         self, user_id: uuid.UUID
     ) -> Optional[Subscription]:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         stmt = select(Subscription).where(
             and_(
                 Subscription.user_id == user_id,

@@ -32,7 +32,7 @@ class CVRepository(AbstractRepository[UserCV]):
         embedding_vector: Optional[list[float]] = None,
         is_active: bool = True,
     ) -> UserCV:
-        encrypted_content = encrypt_data(content)
+        encrypted_content = encrypt_data(content).encode("utf-8")
         return await self.create(
             user_id=user_id,
             title=title,
@@ -42,7 +42,7 @@ class CVRepository(AbstractRepository[UserCV]):
         )
 
     def decrypt_content(self, cv: UserCV) -> str:
-        return decrypt_data(cv.content)
+        return decrypt_data(cv.content.decode("utf-8"))
 
     async def set_active_cv(
         self, cv_id: uuid.UUID, user_id: uuid.UUID

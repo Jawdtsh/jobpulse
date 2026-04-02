@@ -1,6 +1,6 @@
 import uuid
 from typing import Optional, Any
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.models.archived_job import ArchivedJob
 from src.repositories.base import AbstractRepository
@@ -84,6 +84,10 @@ class ArchivedJobRepository(AbstractRepository[ArchivedJob]):
         )
 
     async def count_by_reason(self, archive_reason: str) -> int:
-        stmt = select(ArchivedJob).where(ArchivedJob.archive_reason == archive_reason)
+        stmt = (
+            select(func.count())
+            .select_from(ArchivedJob)
+            .where(ArchivedJob.archive_reason == archive_reason)
+        )
         result = await self._session.execute(stmt)
-        return len(list(result.scalars().all()))
+        return result.scalar() or 0
