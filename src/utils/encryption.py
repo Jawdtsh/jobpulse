@@ -5,11 +5,11 @@ from config.settings import get_settings
 
 @lru_cache(maxsize=1)
 def get_fernet() -> Fernet:
-    settings = get_settings()
-    key = settings.fernet_key
+    s = get_settings()
+    key = s.security.encryption_key
     if not key:
         raise OSError(
-            "FERNET_KEY is not configured. Set it in .env or environment variables."
+            "ENCRYPTION_KEY is not configured. Set it in .env or environment variables."
         )
     return Fernet(key.encode() if isinstance(key, str) else key)
 
@@ -26,7 +26,8 @@ def decrypt_data(encrypted_data: str) -> str:
         return fernet.decrypt(encrypted_data.encode("ascii")).decode("utf-8")
     except InvalidToken as exc:
         raise ValueError(
-            "Decryption failed: ciphertext is corrupted or was encrypted with a different key."
+            "Decryption failed: ciphertext is corrupted or "
+            "was encrypted with a different key."
         ) from exc
 
 
@@ -41,5 +42,6 @@ def decrypt_bytes(encrypted_data: bytes) -> bytes:
         return fernet.decrypt(encrypted_data)
     except InvalidToken as exc:
         raise ValueError(
-            "Decryption failed: ciphertext is corrupted or was encrypted with a different key."
+            "Decryption failed: ciphertext is corrupted or "
+            "was encrypted with a different key."
         ) from exc
