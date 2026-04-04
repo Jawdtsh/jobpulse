@@ -37,4 +37,9 @@ def encrypt_bytes(data: bytes) -> bytes:
 
 def decrypt_bytes(encrypted_data: bytes) -> bytes:
     fernet = get_fernet()
-    return fernet.decrypt(encrypted_data)
+    try:
+        return fernet.decrypt(encrypted_data)
+    except InvalidToken as exc:
+        raise ValueError(
+            "Decryption failed: ciphertext is corrupted or was encrypted with a different key."
+        ) from exc

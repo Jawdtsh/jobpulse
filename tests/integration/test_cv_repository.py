@@ -35,7 +35,7 @@ class TestCVRepository:
         )
         assert cv.title == "My Resume"
         assert cv.content != b"This is my CV content"
-        assert cv.is_active == True
+        assert cv.is_active
 
     @pytest.mark.asyncio
     async def test_decrypt_cv_content(self, cv_repo: CVRepository, test_user):
@@ -110,5 +110,5 @@ class TestCVRepository:
         await cv_repo.set_active_cv(cv2.id, test_user.id)
         updated_cv1 = await cv_repo.get(cv1.id)
         updated_cv2 = await cv_repo.get(cv2.id)
-        assert updated_cv1.is_active == False
-        assert updated_cv2.is_active == True
+        assert not updated_cv1.is_active
+        assert updated_cv2.is_active

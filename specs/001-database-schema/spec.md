@@ -220,6 +220,9 @@ As a system, I need a monitored_channels table to track data sources so that scr
 - **FR-017**: Repository IntegrityError handlers MUST use SAVEPOINTs (begin_nested) instead of session.rollback() to preserve uncommitted operations in the shared session
 - **FR-018**: Vector similarity queries (e.g. find_similar) MUST use a single ORM query with pgvector's cosine_distance, not N+1 raw SQL queries with per-row lookups
 - **FR-019**: Count queries MUST use SELECT COUNT(*) at the database level, not fetch all rows into Python memory. Quota-locking MUST use FOR UPDATE on actual rows (via get_logs_for_update), not on COUNT(*) aggregates which lock nothing.
+- **FR-020**: Fernet encryption utilities MUST wrap InvalidToken in ValueError with descriptive messages in both decrypt_data() and decrypt_bytes(), not let the cryptic Fernet error propagate to callers.
+- **FR-021**: All datetime columns MUST use DateTime(timezone=True) from SQLAlchemy to ensure timezone-aware datetimes, consistent with base.py's TimestampMixin and FR-015's UTC requirement.
+- **FR-022**: Code MUST follow Pythonic patterns per Ruff linting: (1) SIM118 — use `key in kwargs` not `key in kwargs.keys()`, (2) E712 — use `not value` not `value == False/True` for boolean checks, (3) ANN204 — type hints for __init__ methods should be Optional[None] or -> None, (4) F841 — remove unused local variables, (5) consistent type checking imports, (6) avoid unnecessary `== True/False` in assertions.
 
 ### Key Entities *(include if feature involves data)*
 

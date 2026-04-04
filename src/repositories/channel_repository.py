@@ -19,7 +19,7 @@ class ChannelRepository(AbstractRepository[MonitoredChannel]):
     async def get_active_channels(self) -> list[MonitoredChannel]:
         stmt = (
             select(MonitoredChannel)
-            .where(MonitoredChannel.is_active == True)
+            .where(MonitoredChannel.is_active)
             .order_by(MonitoredChannel.created_at.asc())
         )
         result = await self._session.execute(stmt)

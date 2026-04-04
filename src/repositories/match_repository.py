@@ -45,7 +45,7 @@ class MatchRepository(AbstractRepository[JobMatch]):
     async def get_unnotified_matches(self, user_id: uuid.UUID) -> list[JobMatch]:
         stmt = select(JobMatch).where(
             JobMatch.user_id == user_id,
-            JobMatch.is_notified == False,
+            not JobMatch.is_notified,
         )
         result = await self._session.execute(stmt)
         return list(result.scalars().all())

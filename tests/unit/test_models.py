@@ -54,7 +54,7 @@ class TestUserCVModel:
         )
         assert cv.title == "My CV"
         assert cv.content == b"encrypted_content"
-        assert cv.is_active == True
+        assert cv.is_active
 
 
 class TestJobModel:
@@ -70,7 +70,7 @@ class TestJobModel:
         )
         assert job.title == "Software Engineer"
         assert job.company == "Tech Corp"
-        assert job.is_archived == False
+        assert not job.is_archived
 
     def test_job_default_requirements_skills(self):
         job = Job(
@@ -95,8 +95,8 @@ class TestJobMatchModel:
             is_clicked=False,
         )
         assert match.similarity_score == 0.85
-        assert match.is_notified == False
-        assert match.is_clicked == False
+        assert not match.is_notified
+        assert not match.is_clicked
 
 
 class TestSubscriptionModel:
@@ -188,8 +188,8 @@ class TestTelegramSessionModel:
             use_count=0,
         )
         assert session.phone_number == "+1234567890"
-        assert session.is_active == True
-        assert session.is_banned == False
+        assert session.is_active
+        assert not session.is_banned
         assert session.use_count == 0
 
 
@@ -204,5 +204,5 @@ class TestMonitoredChannelModel:
         )
         assert channel.username == "jobpostings"
         assert channel.title == "Job Postings Channel"
-        assert channel.is_active == True
+        assert channel.is_active
         assert channel.jobs_found == 0

@@ -30,11 +30,13 @@ def cosine_similarity(vec1: list[float], vec2: list[float]) -> float:
     if norm1 == 0 or norm2 == 0:
         return 0.0
 
-    return dot_product / (norm1 * norm2)
+    EPSILON = 1e-10
+    return dot_product / (norm1 * norm2) if abs(norm1 * norm2) > EPSILON else 0.0
 
 
 def normalize_vector(vector: list[float]) -> list[float]:
+    EPSILON = 1e-10
     norm = sum(x * x for x in vector) ** 0.5
-    if norm == 0:
+    if norm <= EPSILON:
         return vector
     return [x / norm for x in vector]

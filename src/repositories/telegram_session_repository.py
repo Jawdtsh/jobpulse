@@ -17,8 +17,8 @@ class TelegramSessionRepository(AbstractRepository[TelegramSession]):
             select(TelegramSession)
             .where(
                 and_(
-                    TelegramSession.is_active == True,
-                    TelegramSession.is_banned == False,
+                    TelegramSession.is_active,
+                    not TelegramSession.is_banned,
                 )
             )
             .order_by(

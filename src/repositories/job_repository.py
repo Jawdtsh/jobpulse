@@ -8,7 +8,7 @@ from src.utils.vectors import generate_content_hash
 
 
 class JobRepository(AbstractRepository[Job]):
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: AsyncSession) -> None:
         super().__init__(session, Job)
 
     async def get_by_content_hash(self, content_hash: str) -> Optional[Job]:
@@ -29,7 +29,7 @@ class JobRepository(AbstractRepository[Job]):
         return result.scalar_one_or_none()
 
     async def get_active_jobs(self, skip: int = 0, limit: int = 100) -> list[Job]:
-        stmt = select(Job).where(Job.is_archived == False).offset(skip).limit(limit)
+        stmt = select(Job).where(not Job.is_archived).offset(skip).limit(limit)
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
 
@@ -76,7 +76,7 @@ class JobRepository(AbstractRepository[Job]):
         stmt = (
             select(Job, similarity.label("similarity"))
             .where(
-                Job.is_archived == False,
+                not Job.is_archived,
                 Job.embedding_vector.isnot(None),
                 similarity >= threshold,
             )

@@ -1,13 +1,14 @@
 import uuid
 from typing import Optional
 from sqlalchemy import select, func
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.models.job_report import JobReport
 from src.repositories.base import AbstractRepository
 
 
 class ReportRepository(AbstractRepository[JobReport]):
-    def __init__(self, session: AsyncSession):
+    def __init__(self, session: AsyncSession) -> None:
         super().__init__(session, JobReport)
 
     async def get_reports_by_job(
@@ -54,14 +55,16 @@ class ReportRepository(AbstractRepository[JobReport]):
         reason: str,
         details: Optional[str] = None,
     ) -> Optional[JobReport]:
-        if await self.has_user_reported_job(job_id, reporter_user_id):
+        try:
+            async with self._session.begin_nested():
+                return await self.create(
+                    job_id=job_id,
+                    reporter_user_id=reporter_user_id,
+                    reason=reason,
+                    details=details,
+                )
+        except IntegrityError:
             return None
-        return await self.create(
-            job_id=job_id,
-            reporter_user_id=reporter_user_id,
-            reason=reason,
-            details=details,
-        )
 
     async def should_auto_archive(self, job_id: uuid.UUID, threshold: int = 3) -> bool:
         count = await self.count_unique_reporters_for_job(job_id)

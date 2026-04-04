@@ -19,7 +19,7 @@ class CVRepository(AbstractRepository[UserCV]):
     async def get_active_cv(self, user_id: uuid.UUID) -> Optional[UserCV]:
         stmt = select(UserCV).where(
             UserCV.user_id == user_id,
-            UserCV.is_active == True,
+            UserCV.is_active,
         )
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none()

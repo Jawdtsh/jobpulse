@@ -35,7 +35,7 @@ class AbstractRepository(ABC, Generic[ModelType]):
             return None
 
         # Fail-fast: Validate that all kwargs correspond to actual model attributes
-        invalid_keys = [key for key in kwargs.keys() if not hasattr(instance, key)]
+        invalid_keys = [key for key in kwargs if not hasattr(instance, key)]
         if invalid_keys:
             raise ValueError(
                 f"Invalid fields for {self._model.__name__}: {invalid_keys}"

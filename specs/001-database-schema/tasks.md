@@ -127,6 +127,40 @@ description: "Task list for technical debt and security hardening refinement"
 - [x] T47 [P] Update spec.md FR-015 to require datetime.now(timezone.utc)
 - [x] T48 Run unit tests and linting to verify no regressions
 
+## Phase 13: Bugfix - Inconsistent Encryption Error Messages
+
+**Purpose**: Fix inconsistent error handling between decrypt_data() and decrypt_bytes() — decrypt_bytes() allows cryptic InvalidToken from Fernet to propagate, while decrypt_data() wraps it in a descriptive ValueError (Constitution Principle IX — consistent error messages)
+
+- [x] T49 Wrap fernet.decrypt() in decrypt_bytes() with InvalidToken → ValueError wrapper in src/utils/encryption.py, raising "Decryption failed: ciphertext is corrupted or was encrypted with a different key."
+- [x] T50 Run unit tests and linting to verify consistent error messages across both functions
+
+## Phase 14: Bugfix - Inconsistent Encryption Error Messages and Missing DateTime(timezone=True)
+
+**Purpose**: Fix inconsistent error handling between decrypt_data() and decrypt_bytes() (cryptic InvalidToken vs user-friendly ValueError) and add missing DateTime(timezone=True) to datetime columns in job_report and monitored_channel models (Constitution Principle IX and FR-015)
+
+- [x] T51 [P] Add DateTime(timezone=True) to job_report.created_at and monitored_channel.last_scraped_at, import DateTime from sqlalchemy
+- [x] T52 [P] Fix TOCTOU race condition in ReportRepository.create_report by replacing check-then-create with begin_nested() + IntegrityError pattern, removing has_user_reported_job call
+- [x] T53 [P] Update spec.md FR-020 (Encryption) and add FR-021 (DateTime(timezone=True) consistency)
+- [x] T54 Run unit tests and linting to verify no regressions
+
+## Phase 15: Bugfix - Lint and Consistency Fixes
+
+**Purpose**: Fix 11 remaining lint errors across source and test files to comply with Ruff rules and ensure code consistency (Constitution Principle X — Pythonic patterns and readability)
+
+- [x] T55 [P] Fix src/models/telegram_session.py: Remove empty TYPE_CHECKING block and unused TYPE_CHECKING import (Ruff F401, RUF015)
+- [x] T56 [P] Fix src/repositories/base.py line 38: SIM118 — replace `kwargs.keys()` with `kwargs` (Ruff SIM118)
+- [x] T57 [P] Fix src/repositories/job_repository.py: ANN204 (add -> None to __init__), E712 (replace == False with not) in get_active_jobs and find_similar (Ruff ANN204, E712)
+- [x] T58 [P] Fix src/repositories/report_repository.py: ANN204 (add -> None to __init__) (Ruff ANN204)
+- [x] T59 [P] Fix src/utils/vectors.py: EPSILON constant and floating-point comparison for reliability (Ruff F841, B002)
+- [x] T60 [P] Fix test files: Replace == True/False with direct assertions in test_cover_letter_repository.py (E712), test_cv_repository.py (E712), test_models.py (E712), test_user_repository.py (F401)
+- [x] T61 [P] Fix src/repositories/channel_repository.py: E712 in get_active_channels (Ruff E712)
+- [x] T62 [P] Fix src/repositories/cv_repository.py: E712 in get_active_cv (Ruff E712)
+- [x] T63 [P] Fix src/repositories/match_repository.py: E712 in get_unnotified_matches (Ruff E712)
+- [x] T64 [P] Fix src/repositories/telegram_session_repository.py: E712 in get_available_sessions (Ruff E712)
+- [x] T65 [P] Update tests/conftest.py event_loop fixture for pytest-asyncio 0.23+ compatibility (Ruff E402)
+- [x] T66 Run full ruff check on src/ and tests/ to verify all linting errors are resolved
+- [x] T67 Update spec.md to document lint fixes and code quality improvements
+
 ---
 
 ### Dependencies & Execution Order

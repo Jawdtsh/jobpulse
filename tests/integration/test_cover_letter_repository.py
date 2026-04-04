@@ -82,7 +82,7 @@ class TestCoverLetterRepository:
             test_user.id,
             monthly_limit=10,
         )
-        assert available == True
+        assert available
 
     @pytest.mark.asyncio
     async def test_check_quota_exceeded(
@@ -97,7 +97,7 @@ class TestCoverLetterRepository:
             test_user.id,
             monthly_limit=10,
         )
-        assert available == False
+        assert not available
 
     @pytest.mark.asyncio
     async def test_get_logs_by_user(

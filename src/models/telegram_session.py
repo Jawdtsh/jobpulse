@@ -1,12 +1,8 @@
 from datetime import datetime
-from typing import TYPE_CHECKING
 from sqlalchemy import Boolean, Integer, LargeBinary, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 from src.models.base import UUIDPrimaryKeyMixin, TimestampMixin
 from src.database import Base
-
-if TYPE_CHECKING:
-    pass
 
 
 class TelegramSession(Base, UUIDPrimaryKeyMixin, TimestampMixin):
