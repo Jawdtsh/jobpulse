@@ -1,4 +1,4 @@
-from src.database import Base, engine, async_session_maker, get_async_session
+from src.database import Base, get_async_session
 from src.models import (
     User,
     UserCV,
@@ -28,6 +28,20 @@ from src.repositories import (
     TelegramSessionRepository,
     ChannelRepository,
 )
+
+
+def __getattr__(name) -> object:
+    if name in ("engine", "async_session_maker"):
+        from src.database import _ensure_engine
+
+        _ensure_engine()
+        from src import database
+
+        if name == "engine":
+            return database._engine
+        return database._async_session_maker
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
 
 __all__ = [
     "Base",

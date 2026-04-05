@@ -18,9 +18,9 @@ description: "Task list for technical debt and security hardening refinement"
 
 **Purpose**: Verify environment and prepare for safety-critical changes
 
-- [ ] T001 Backup current database and verify migration state
-- [ ] T002 [P] Ensure test environment is isolated from production
-- [ ] T003 [P] Verify all dependencies are installed and up to date
+- [X] T001 Backup current database and verify migration state
+- [X] T002 [P] Ensure test environment is isolated from production
+- [X] T003 [P] Verify all dependencies are installed and up to date
 
 ## Phase 1: Database Integrity Improvements
 
