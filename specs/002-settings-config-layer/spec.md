@@ -2,10 +2,26 @@
 
 **Feature Branch**: `002-settings-config-layer`  
 **Created**: 2026-04-04  
-**Status**: Draft  
+**Status**: Implemented  
 **Input**: Centralized, type-safe configuration management for all application components
 
 ## Clarifications
+
+### Session 2026-04-05
+
+- Fix: `src/utils/encryption.py` error message corrected from duplicated/misleading `"FERNET_KEY is not configured...ENCRYPTION_KEY is not configured..."` to single accurate `OSError("ENCRYPTION_KEY is not configured. Set it in .env or environment variables.")` — Constitution Principle IX.
+- Fix: `tests/unit/test_encryption.py` updated: mock path corrected from `mock_settings.fernet_key` (flat) to `mock_settings.security.encryption_key` (nested); exception type corrected from `EnvironmentError` to `OSError`; all happy-path tests now mock `get_fernet` to avoid `.env` bleeding.
+- Fix: `tests/config/test_settings.py` four test gaps resolved:
+  1. TestSecretMasking now contains proper masking tests: `test_repr_masks_encryption_key` + `test_repr_masks_api_keys` (FR-004, SC-003).
+  2. Moved misplaced DB tests from TestSecretMasking to TestDatabaseFieldValidators.
+  3. `test_valid_plain_postgresql_prefix` now asserts exactly 1 warning containing "asyncpg" (FR-018 edge case).
+  4. Added `TestEdgeCases.test_whitespace_stripped_from_env_values` — required adding `_strip_environment` field_validator to MonitoringSettings (T019).
+- Fix: `contracts/env-vars.md` BOT_TOKEN pattern updated from `^\d+:[a-zA-Z0-9_-]+$` to `^\d+:[A-Za-z0-9_-]{35,}$` to match data-model.md (Constitution Principle V — spec consistency).
+- Fix: `contracts/env-vars.md` DB env var names updated from `DB_POOL_SIZE`/`DB_MAX_OVERFLOW`/`DB_CONNECTION_TIMEOUT` to `DATABASE_POOL_SIZE`/`DATABASE_MAX_OVERFLOW`/`DATABASE_CONNECTION_TIMEOUT` to match implementation and data-model.md.
+- Fix: `src/__init__.py` `__getattr__` return type annotated `-> object`; `src/database.py` `_ensure_engine` return type annotated `-> None`, `__getattr__` return type annotated `-> object` (Constitution Principle III).
+- Fix: `tests/config/test_settings.py` mutable `model_config = {...}` dict replaced with `SettingsConfigDict(...)` (Ruff RUF012).
+- Optimization: `_fernet_key()` function replaced with module-level `_TEST_FERNET_KEY` constant in test_settings.py.
+- 81 tests pass (71 settings + 10 encryption); ruff lint clean on all changed files.
 
 ### Session 2026-04-04
 

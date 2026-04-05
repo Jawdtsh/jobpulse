@@ -16,7 +16,7 @@ _engine = None
 _async_session_maker = None
 
 
-def _ensure_engine():
+def _ensure_engine() -> None:
     global _engine, _async_session_maker
     if _engine is not None:
         return
@@ -41,7 +41,7 @@ async def get_async_session() -> AsyncGenerator[AsyncSession, None]:
         yield session
 
 
-def __getattr__(name):
+def __getattr__(name) -> object:
     if name == "engine":
         _ensure_engine()
         return _engine

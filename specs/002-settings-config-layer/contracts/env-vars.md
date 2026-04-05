@@ -28,9 +28,9 @@ This document defines all environment variables required by the Settings & Confi
 | `SENTRY_DSN` | string | (empty) | Sentry DSN for error tracking |
 | `ENVIRONMENT` | string | `development` | One of: development, staging, production |
 | `DEBUG` | bool | `false` | Enable debug mode |
-| `DB_POOL_SIZE` | int | `5` | Database connection pool size |
-| `DB_MAX_OVERFLOW` | int | `5` | Database max overflow connections |
-| `DB_CONNECTION_TIMEOUT` | int | `30` | Database connection timeout (seconds) |
+| `DATABASE_POOL_SIZE` | int | `5` | Database connection pool size |
+| `DATABASE_MAX_OVERFLOW` | int | `5` | Database max overflow connections |
+| `DATABASE_CONNECTION_TIMEOUT` | int | `30` | Database connection timeout (seconds) |
 | `REDIS_CONNECTION_TIMEOUT` | int | `5` | Redis connection timeout (seconds) |
 | `REDIS_MAX_CONNECTIONS` | int | `10` | Redis max connections in pool |
 
@@ -38,7 +38,7 @@ This document defines all environment variables required by the Settings & Confi
 
 - All required variables MUST be present and non-empty
 - `ENCRYPTION_KEY` MUST be a valid 44-character base64-encoded Fernet key
-- `BOT_TOKEN` MUST match the pattern `^\d+:[a-zA-Z0-9_-]+$`
+- `BOT_TOKEN` MUST match the pattern `^\d+:[A-Za-z0-9_-]{35,}$`
 - `CRYPTO_WALLET_ADDRESS` MUST start with 'T' and be exactly 34 characters
 - `ENVIRONMENT` MUST be one of: `development`, `staging`, `production`
 - `DEBUG` MUST be a valid boolean string (`true`, `false`, `1`, `0`)

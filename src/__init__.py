@@ -30,7 +30,7 @@ from src.repositories import (
 )
 
 
-def __getattr__(name):
+def __getattr__(name) -> object:
     if name in ("engine", "async_session_maker"):
         from src.database import _ensure_engine
 

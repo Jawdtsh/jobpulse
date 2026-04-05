@@ -16,8 +16,7 @@ _NESTED_MODELS = [
 ]
 
 
-def _fernet_key():
-    return Fernet.generate_key().decode()
+_TEST_FERNET_KEY = Fernet.generate_key().decode()
 
 
 def _base_env(**overrides):
@@ -36,7 +35,7 @@ def _base_env(**overrides):
         "GROQ_API_KEY": "test-groq-key",
         "OPENROUTER_API_KEY": "test-openrouter-key",
         "ZHIPU_API_KEY": "test-zhipu-key",
-        "ENCRYPTION_KEY": _fernet_key(),
+        "ENCRYPTION_KEY": _TEST_FERNET_KEY,
         "SECRET_KEY": "a" * 32,
         "SHAMCASH_API_KEY": "test-shamcash-key",
         "CRYPTO_WALLET_ADDRESS": "T" + "A" * 33,
@@ -152,12 +151,15 @@ class TestDatabaseUrlValidation:
     def test_valid_plain_postgresql_prefix(self, monkeypatch):
         import warnings
 
-        with warnings.catch_warnings():
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
             s = _make_settings(
                 monkeypatch,
                 DATABASE_URL="postgresql://user:pass@localhost:5432/testdb",
             )
         assert s.database.database_url.startswith("postgresql://")
+        assert len(w) == 1
+        assert "asyncpg" in str(w[0].message).lower()
 
 
 class TestDatabaseOverrides:
@@ -198,6 +200,19 @@ class TestDatabaseFieldValidators:
     def test_max_overflow_negative(self, monkeypatch):
         with pytest.raises(ValidationError):
             _make_settings(monkeypatch, DATABASE_MAX_OVERFLOW="-1")
+
+    def test_max_overflow_too_high(self, monkeypatch):
+        with pytest.raises(ValidationError):
+            _make_settings(monkeypatch, DATABASE_MAX_OVERFLOW="21")
+
+    def test_connection_timeout_zero(self, monkeypatch):
+        with pytest.raises(ValidationError):
+            _make_settings(monkeypatch, DATABASE_CONNECTION_TIMEOUT="0")
+
+    def test_connection_timeout_negative(self, monkeypatch):
+        with pytest.raises(ValidationError):
+            _make_settings(monkeypatch, DATABASE_CONNECTION_TIMEOUT="-5")
+
 
 class TestCryptoWallet:
     def test_valid_address(self, monkeypatch):
@@ -268,7 +283,6 @@ class TestEnvironmentAndDebug:
 
 class TestEnvFileIntegration:
     def test_loads_from_env_file(self, monkeypatch, tmp_path):
-        key = _fernet_key()
         env_file = tmp_path / ".env"
         env_file.write_text(
             "DATABASE_URL=postgresql+asyncpg://u:p@h:5432/fromfile\n"
@@ -280,7 +294,7 @@ class TestEnvFileIntegration:
             "GROQ_API_KEY=file-key\n"
             "OPENROUTER_API_KEY=file-key\n"
             "ZHIPU_API_KEY=file-key\n"
-            f"ENCRYPTION_KEY={key}\n"
+            f"ENCRYPTION_KEY={_TEST_FERNET_KEY}\n"
             "SECRET_KEY=" + "s" * 32 + "\n"
             "SHAMCASH_API_KEY=file-key\n"
             "CRYPTO_WALLET_ADDRESS=T" + "X" * 33 + "\n"
@@ -302,12 +316,14 @@ class TestEnvFileIntegration:
         ]:
             monkeypatch.delenv(var_name, raising=False)
 
+        from pydantic_settings import SettingsConfigDict
+
         class FileSettings(mod.Settings):
-            model_config = {
-                "env_file": str(env_file),
-                "env_file_encoding": "utf-8",
-                "extra": "ignore",
-            }
+            model_config = SettingsConfigDict(
+                env_file=str(env_file),
+                env_file_encoding="utf-8",
+                extra="ignore",
+            )
 
         for cls in _NESTED_MODELS[:-1]:
             monkeypatch.setitem(cls.model_config, "env_file", str(env_file))
@@ -333,18 +349,24 @@ class TestSecretMasking:
         r = repr(s)
         assert "test-gem" in r
 
+    def test_repr_masks_encryption_key(self, monkeypatch):
+        key = _TEST_FERNET_KEY
+        s = _make_settings(monkeypatch, ENCRYPTION_KEY=key)
+        r = repr(s)
+        assert key not in r
+        assert key[:8] in r
 
-    def test_max_overflow_too_high(self, monkeypatch):
-        with pytest.raises(ValidationError):
-            _make_settings(monkeypatch, DATABASE_MAX_OVERFLOW="21")
-
-    def test_connection_timeout_zero(self, monkeypatch):
-        with pytest.raises(ValidationError):
-            _make_settings(monkeypatch, DATABASE_CONNECTION_TIMEOUT="0")
-
-    def test_connection_timeout_negative(self, monkeypatch):
-        with pytest.raises(ValidationError):
-            _make_settings(monkeypatch, DATABASE_CONNECTION_TIMEOUT="-5")
+    def test_repr_masks_api_keys(self, monkeypatch):
+        s = _make_settings(
+            monkeypatch,
+            GEMINI_API_KEY="AIzaSyB-very-long-gemini-secret-key-here",
+            GROQ_API_KEY="gsk_long-groq-secret-key-value-here",
+        )
+        r = repr(s)
+        assert "AIzaSyB-very-long-gemini-secret-key-here" not in r
+        assert "gsk_long-groq-secret-key-value-here" not in r
+        assert "AIzaSyB-" in r
+        assert "gsk_long" in r
 
 
 class TestEncryptionKeyValid:
@@ -451,3 +473,9 @@ class TestAiModelsIntegration:
         assert "active" in models
         assert "fallback" in models
         assert "classifier" in models["active"]
+
+
+class TestEdgeCases:
+    def test_whitespace_stripped_from_env_values(self, monkeypatch):
+        s = _make_settings(monkeypatch, ENVIRONMENT=" development ")
+        assert s.monitoring.environment == "development"
