@@ -77,3 +77,13 @@ class ChannelRepository(AbstractRepository[MonitoredChannel]):
 
     async def activate(self, channel_id: uuid.UUID) -> Optional[MonitoredChannel]:
         return await self.update(channel_id, is_active=True)
+
+    async def increment_jobs_found(
+        self, channel_id: uuid.UUID, count: int = 1
+    ) -> Optional[MonitoredChannel]:
+        return await self.update_stats(channel_id, jobs_found=count)
+
+    async def increment_false_positives(
+        self, channel_id: uuid.UUID, count: int = 1
+    ) -> Optional[MonitoredChannel]:
+        return await self.update_stats(channel_id, false_positives=count)

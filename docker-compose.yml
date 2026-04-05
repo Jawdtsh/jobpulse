@@ -31,6 +31,30 @@ services:
       timeout: 5s
       retries: 5
 
+  celery-worker:
+    build: .
+    container_name: jobpulse_celery_worker
+    command: celery -A workers.celery_app worker --loglevel=info --pool=asyncio
+    env_file: .env
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  celery-beat:
+    build: .
+    container_name: jobpulse_celery_beat
+    command: celery -A workers.celery_app beat --loglevel=info
+    env_file: .env
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   redis_data:

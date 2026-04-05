@@ -33,6 +33,21 @@ class TelegramSessionRepository(AbstractRepository[TelegramSession]):
         sessions = await self.get_available_sessions()
         return sessions[0] if sessions else None
 
+    async def get_next_active_session(self) -> Optional[TelegramSession]:
+        stmt = (
+            select(TelegramSession)
+            .where(
+                and_(
+                    TelegramSession.is_active,
+                    not TelegramSession.is_banned,
+                )
+            )
+            .order_by(TelegramSession.last_used_at.asc().nulls_first())
+            .limit(1)
+        )
+        result = await self._session.execute(stmt)
+        return result.scalar_one_or_none()
+
     async def create_session(
         self,
         session_string: str,
