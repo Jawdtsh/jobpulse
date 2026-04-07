@@ -20,6 +20,7 @@ async def run_ingestion_pipeline(self) -> dict
 ```
 
 **Schedule**: Every 3 minutes via Celery Beat
+
 ```python
 app.conf.beat_schedule = {
     "run-ingestion-pipeline": {

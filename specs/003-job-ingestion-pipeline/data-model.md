@@ -50,7 +50,7 @@ Already defined in SPEC-001. Used by the pipeline for:
 
 ### Pipeline Message Lifecycle
 
-```
+```text
 Raw Message → Filtered → Classified (job) → Extracted → Deduplicated → Embedded → Stored
                   ↓            ↓               ↓              ↓
                (blocked)  (not a job)    (parse error)   (duplicate → skip)
@@ -58,7 +58,7 @@ Raw Message → Filtered → Classified (job) → Extracted → Deduplicated →
 
 ### Channel Status Transition
 
-```
+```text
 Active → Inactive (when deleted/private/permission error)
 ```
 
@@ -66,7 +66,7 @@ No reverse transition in v1 (requires manual admin action).
 
 ### Session Status Transition
 
-```
+```text
 Active → Rate Limited (temporary, auto-recoverable after cooldown)
 Active → Banned (permanent, requires manual review)
 Banned → Active (manual admin reactivation)

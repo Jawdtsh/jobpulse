@@ -50,8 +50,8 @@ class TestEmptyStringHandling:
     def test_whitespace_only(self):
         assert normalize_text("   \n\t  ") == ""
 
-    def test_none_like_empty(self):
-        assert normalize_text("") == ""
+    def test_normalize_none_returns_empty_string(self):
+        assert normalize_text(None) == ""
 
 
 class TestUrlRemoval:
@@ -68,3 +68,9 @@ class TestUrlRemoval:
 class TestStripping:
     def test_strips_leading_trailing(self):
         assert normalize_text("  hello  ") == "hello"
+
+
+class TestNormalizationOrder:
+    def test_normalize_order_is_stable(self):
+        assert normalize_text(" hello world ") == "hello world"
+        assert normalize_text("HELLO WORLD") == "hello world"

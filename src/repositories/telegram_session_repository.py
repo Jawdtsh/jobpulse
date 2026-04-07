@@ -18,7 +18,7 @@ class TelegramSessionRepository(AbstractRepository[TelegramSession]):
             .where(
                 and_(
                     TelegramSession.is_active,
-                    not TelegramSession.is_banned,
+                    TelegramSession.is_banned == False,  # noqa: E712
                 )
             )
             .order_by(
@@ -29,17 +29,13 @@ class TelegramSessionRepository(AbstractRepository[TelegramSession]):
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
 
-    async def get_next_session(self) -> Optional[TelegramSession]:
-        sessions = await self.get_available_sessions()
-        return sessions[0] if sessions else None
-
     async def get_next_active_session(self) -> Optional[TelegramSession]:
         stmt = (
             select(TelegramSession)
             .where(
                 and_(
                     TelegramSession.is_active,
-                    not TelegramSession.is_banned,
+                    TelegramSession.is_banned == False,  # noqa: E712
                 )
             )
             .order_by(TelegramSession.last_used_at.asc().nulls_first())
@@ -47,6 +43,10 @@ class TelegramSessionRepository(AbstractRepository[TelegramSession]):
         )
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def get_next_session(self) -> Optional[TelegramSession]:
+        sessions = await self.get_available_sessions()
+        return sessions[0] if sessions else None
 
     async def create_session(
         self,
@@ -63,7 +63,6 @@ class TelegramSessionRepository(AbstractRepository[TelegramSession]):
         return decrypt_data(session.session_string.decode("utf-8"))
 
     async def mark_used(self, session_id: uuid.UUID) -> Optional[TelegramSession]:
-        # Use atomic DB-side increment to prevent race conditions
         stmt = (
             update(TelegramSession)
             .where(TelegramSession.id == session_id)

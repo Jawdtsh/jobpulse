@@ -5,19 +5,12 @@ import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.repositories.channel_repository import ChannelRepository
-
-
-from src.repositories.telegram_session_repository import TelegramSessionRepository
+from src.repositories.spam_rule_repository import SpamRuleRepository
 
 
 @pytest_asyncio.fixture
 async def channel_repo(db_session: AsyncSession):
     return ChannelRepository(db_session)
-
-
-@pytest_asyncio.fixture
-async def session_repo(db_session: AsyncSession):
-    return TelegramSessionRepository(db_session)
 
 
 class TestScrapeAndFilterFlow:
@@ -46,22 +39,29 @@ class TestScrapeAndFilterFlow:
             mock_msg2.id = 2
             mock_client.iter_messages.return_value = [mock_msg1, mock_msg2]
 
-            with patch("src.services.job_filter_service._get_redis") as mock_redis:
-                r = AsyncMock()
-                r.get.return_value = None
-                r.close = AsyncMock()
-                r.setex = AsyncMock()
-                mock_redis.return_value = r
+            with patch("src.services.job_filter_service.get_settings") as mock_st:
+                s = MagicMock()
+                s.redis.redis_url = "redis://localhost:6379"
+                mock_st.return_value = s
 
                 from src.services.job_filter_service import JobFilterService
                 from src.services.job_ingestion_service import JobIngestionService
 
-                filter_svc = JobFilterService()
-                with patch.object(filter_svc, "_load_rules_from_db", return_value=[]):
+                spam_rule_repo = SpamRuleRepository(db_session)
+                filter_svc = JobFilterService(spam_rule_repo)
+                filter_svc._redis = AsyncMock()
+                filter_svc._redis.get.return_value = None
+                filter_svc._redis.setex = AsyncMock()
+                with patch.object(
+                    filter_svc._spam_rule_repo,
+                    "get_active_rules",
+                    new_callable=AsyncMock,
+                    return_value=[],
+                ):
                     svc = JobIngestionService(
                         session=db_session,
                         filter_service=filter_svc,
                     )
                     metrics = await svc.run_pipeline()
-                    assert "channels_processed" in metrics
-                    assert metrics["channels_processed"] >= 0
+                    assert metrics["channels_processed"] == 1
+                    assert metrics["messages_scraped"] >= 1

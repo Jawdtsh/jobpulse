@@ -59,15 +59,12 @@ class TestGetActiveRules:
 
 class TestUniqueConstraint:
     @pytest.mark.asyncio
-    async def test_duplicate_pattern_type_rejected(
-        self, repo: SpamRuleRepository, db_session: AsyncSession
-    ):
+    async def test_duplicate_pattern_type_rejected(self, repo: SpamRuleRepository):
         from sqlalchemy.exc import IntegrityError
 
         await repo.create(pattern="duplicate", rule_type="spam_keyword")
         with pytest.raises(IntegrityError):
             await repo.create(pattern="duplicate", rule_type="spam_keyword")
-            await db_session.flush()
 
     @pytest.mark.asyncio
     async def test_same_pattern_different_type_allowed(self, repo: SpamRuleRepository):

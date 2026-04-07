@@ -27,12 +27,17 @@ class TestFallbackChain:
     @pytest.mark.asyncio
     async def test_iterates_fallback_on_failure(self, service):
         with (
-            patch.object(service, "_call_provider", side_effect=Exception("fail")),
+            patch.object(
+                service, "_call_provider", side_effect=Exception("fail")
+            ) as mock_call,
             patch.object(service, "check_daily_limit", return_value=True),
             patch.object(service, "increment_usage"),
         ):
             with pytest.raises(AIServiceUnavailableError):
                 await service.call_model("classifier", "test prompt")
+            attempted_models = [call[0][0] for call in mock_call.call_args_list]
+            assert mock_call.call_count == 9
+            assert "regex_only" not in attempted_models
 
     @pytest.mark.asyncio
     async def test_returns_first_success(self, service):
@@ -51,20 +56,25 @@ class TestFallbackChain:
 
     @pytest.mark.asyncio
     async def test_skips_regex_only_in_chain(self, service):
-        call_count = 0
+        attempted_models = []
 
-        async def counting_call(**kwargs):
-            nonlocal call_count
-            call_count += 1
+        async def counting_call(
+            model_name, provider_info, prompt, system_prompt, response_format, timeout
+        ):
+            attempted_models.append(model_name)
             return "ok"
 
         with (
-            patch.object(service, "_call_provider", side_effect=counting_call),
+            patch.object(
+                service, "_call_provider", side_effect=counting_call
+            ) as mock_call,
             patch.object(service, "check_daily_limit", return_value=True),
             patch.object(service, "increment_usage"),
         ):
             result = await service.call_model("classifier", "prompt")
             assert result == "ok"
+            assert mock_call.call_count == 1
+            assert "regex_only" not in attempted_models
 
 
 class TestDailyLimit:
@@ -79,7 +89,6 @@ class TestDailyLimit:
         with patch("src.services.ai_provider_service._get_redis") as mock_redis:
             r = AsyncMock()
             r.get.return_value = "5"
-            r.close = AsyncMock()
             mock_redis.return_value = r
             result = await service.check_daily_limit("gemini-2.5-flash-lite")
             assert result is True
@@ -89,7 +98,6 @@ class TestDailyLimit:
         with patch("src.services.ai_provider_service._get_redis") as mock_redis:
             r = AsyncMock()
             r.get.return_value = "1000"
-            r.close = AsyncMock()
             mock_redis.return_value = r
             result = await service.check_daily_limit("gemini-2.5-flash-lite")
             assert result is False
@@ -100,7 +108,9 @@ class TestExponentialBackoff:
     async def test_retries_three_times_per_model(self, service):
         call_count = 0
 
-        async def fail_then_succeed(**kwargs):
+        async def fail_then_succeed(
+            model_name, provider_info, prompt, system_prompt, response_format, timeout
+        ):
             nonlocal call_count
             call_count += 1
             if call_count <= 2:
@@ -127,8 +137,8 @@ class TestTimeout:
             patch.object(service, "increment_usage"),
         ):
             await service.call_model("classifier", "prompt", timeout=60)
-            _, kwargs = mock_call.call_args
-            assert kwargs["timeout"] == 60
+            args = mock_call.call_args[0]
+            assert args[5] == 60
 
 
 class TestProviderClientCreation:

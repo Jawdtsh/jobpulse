@@ -105,7 +105,7 @@ As the system, I need to check for duplicate jobs using content hashing and stor
 
 - **FR-001**: System MUST connect to Telegram using configured user-bot credentials and fetch messages from all active monitored channels
 - **FR-001a**: System MUST extract text content from messages regardless of attached media (photos, videos, documents); messages containing ONLY media with NO text content MUST be ignored and skipped from processing
-- **FR-002**: System MUST retrieve messages in batches of 100 per channel, tracking the last processed message ID per channel
+- **FR-002**: System MUST retrieve messages in batches of 100 per channel, tracking the last processed message ID per channel via `monitored_channels.last_message_id` column
 - **FR-003**: System MUST filter out posts containing spam keywords or scam indicators loaded from spam_rules table; spam rules MUST be cached in Redis with 300-second TTL and automatically reloaded on cache expiry; posts shorter than 50 characters MUST be skipped regardless of content
 - **FR-004**: System MUST classify filtered posts as "job" or "not job" using AI with a binary yes/no response
 - **FR-005**: System MUST extract structured data (title, company, location, salary range, description, requirements, skills) from classified job posts in JSON format
@@ -123,7 +123,7 @@ As the system, I need to check for duplicate jobs using content hashing and stor
 - **FR-017**: System MUST process messages in parallel batches using asyncio.gather with maximum 5 concurrent AI API calls PER PIPELINE STAGE (5 concurrent classifications, 5 concurrent extractions, 5 concurrent embeddings) to balance throughput with API provider rate limits
 - **FR-018**: System MUST handle partial extractions gracefully, storing null for any fields that cannot be parsed from the post text
 - **FR-019**: System MUST execute the ingestion pipeline automatically on a fixed 3-minute interval via the Celery task scheduler
-- **FR-020**: System MUST send alerts to admin Telegram channel (chat ID loaded from settings.monitoring.admin_telegram_chat_id environment variable) when critical pipeline failures occur; alert message format: "🚨 [SEVERITY] Pipeline Alert\n\n{error_details}\n\nTimestamp: {iso_timestamp}"; CRITICAL severity triggers: all Telegram sessions banned, all AI providers exhausted after fallback chain, or pipeline worker crash; individual job extraction failures MUST be logged only without alert
+- **FR-020**: System MUST send alerts to admin Telegram channel (chat ID loaded from settings.telegram.admin_alert_channel_id (from TelegramSettings in config/settings.py)) when critical pipeline failures occur; alert message format: "🚨 [SEVERITY] Pipeline Alert\n\n{error_details}\n\nTimestamp: {iso_timestamp}"; CRITICAL severity triggers: all Telegram sessions banned, all AI providers exhausted after fallback chain, or pipeline worker crash; individual job extraction failures MUST be logged only without alert
 
 ### Key Entities
 
@@ -158,3 +158,12 @@ As the system, I need to check for duplicate jobs using content hashing and stor
 - Redis is available and configured as Celery message broker (per settings.redis_url from SPEC-002)
 - Celery Beat scheduler is running and configured for 3-minute periodic task execution
 - Server has sufficient resources (minimum 2 CPU cores, 4GB RAM) to handle 5 concurrent async AI API calls per pipeline stage
+
+## Test Quality Standards
+
+- **TQ-001**: All async methods MUST be tested with async mocks (e.g., `new_callable=AsyncMock`); never use sync mocks for async functions
+- **TQ-002**: Integration tests MUST seed exact data and assert exact counts (e.g., `metrics["channels_processed"] == 1` when one channel is seeded)
+- **TQ-003**: `pytest.raises()` blocks MUST contain exactly one statement — the call expected to raise
+- **TQ-004**: Duplicate test cases MUST be replaced with distinct edge-case scenarios (no two tests assert the same behavior)
+- **TQ-005**: Cache miss tests MUST assert both the DB fallback call and the cache write (e.g., `setex.assert_awaited_once()`)
+- **TQ-006**: Fallback chain tests MUST assert the exact number of provider attempts (e.g., `call_count == 9` for 3 models × 3 retries)

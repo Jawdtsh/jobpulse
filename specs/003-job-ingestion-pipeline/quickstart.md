@@ -27,10 +27,10 @@ This creates the `spam_rules` table (migration 005) and seeds initial spam rules
 ```python
 # From Python shell or script
 from src.repositories.spam_rule_repository import SpamRuleRepository
-from src.database import get_session
+from src.database import get_async_session
 
 async def seed_spam_rules():
-    async with get_session() as session:
+    async with get_async_session() as session:
         repo = SpamRuleRepository(session)
         # Add spam keywords
         await repo.create(pattern="ربح سريع", rule_type="spam_keyword")

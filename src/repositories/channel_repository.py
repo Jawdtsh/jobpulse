@@ -43,7 +43,6 @@ class ChannelRepository(AbstractRepository[MonitoredChannel]):
         jobs_found: Optional[int] = None,
         false_positives: Optional[int] = None,
     ) -> Optional[MonitoredChannel]:
-        # Use atomic DB-side increments to prevent race conditions
         updates = {}
         if jobs_found is not None:
             updates["jobs_found"] = MonitoredChannel.jobs_found + jobs_found
@@ -55,7 +54,6 @@ class ChannelRepository(AbstractRepository[MonitoredChannel]):
         if not updates:
             return await self.get(channel_id)
 
-        # Perform atomic update
         stmt = (
             update(MonitoredChannel)
             .where(MonitoredChannel.id == channel_id)
@@ -87,3 +85,14 @@ class ChannelRepository(AbstractRepository[MonitoredChannel]):
         self, channel_id: uuid.UUID, count: int = 1
     ) -> Optional[MonitoredChannel]:
         return await self.update_stats(channel_id, false_positives=count)
+
+    async def update_last_message_id(
+        self,
+        channel_id: uuid.UUID,
+        message_id: int,
+    ) -> Optional[MonitoredChannel]:
+        return await self.update(
+            channel_id,
+            last_message_id=message_id,
+            last_scraped_at=datetime.now(timezone.utc),
+        )

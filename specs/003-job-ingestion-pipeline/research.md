@@ -114,7 +114,7 @@
 
 **Context**: Critical pipeline failures must trigger alerts to a designated admin Telegram channel (per clarification Q5).
 
-**Decision**: Add `admin_alert_channel_id` to `TelegramSettings` in `config/settings.py`. The alert is sent via a dedicated Telethon client (separate from scraping sessions) using the `SendMessage` API to the configured channel. Alerts are triggered for: all sessions banned, all AI providers exhausted for a batch, or unhandled pipeline crash. Alert messages include timestamp, error type, affected channel/message ID, and recommended action.
+**Decision**: Add `admin_alert_channel_id` to `TelegramSettings` in `config/settings.py`. The alert is sent using a Telethon bot client authenticated via `bot_token` from settings. The `AdminAlertService` creates an ephemeral `TelegramClient`, connects, and signs in using `client.sign_in(bot_token=settings.telegram.bot_token)`. The bot token provides independent authentication — no user session string or scraper session reuse is needed. This keeps the alert channel functional even when all scraper sessions are banned. Alerts are triggered for: all sessions banned, all AI providers exhausted for a batch, or unhandled pipeline crash. Alert messages include timestamp, error type, affected channel/message ID, and recommended action.
 
 **Rationale**:
 - Using a dedicated client prevents alert failures when scraping sessions are banned

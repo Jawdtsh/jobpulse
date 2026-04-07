@@ -162,12 +162,31 @@ All seeded rules should have is_active=True.
 
 **Purpose**: Improvements that affect multiple user stories
 
-- [ ] T038 [P] Update src/services/__init__.py to export all new services (JobIngestionService, JobFilterService, JobClassifierService, JobExtractorService, JobEmbeddingService, AIProviderService, AdminAlertService)
-- [ ] T039 [P] Update src/repositories/__init__.py to export SpamRuleRepository
-- [ ] T040 [P] Update workers/__init__.py to export Celery app
-- [ ] T041 Run full integration test suite and verify 80% coverage minimum on new service files
-- [ ] T042 Run quickstart.md validation: execute migration, start Celery worker + beat, verify pipeline runs and stores jobs
-- [ ] T043 Code cleanup: verify all files under 200 lines, all functions under 20 lines, all functions have type hints, no magic numbers, no hardcoded secrets
+- [x] T038 [P] Update src/services/__init__.py to export all new services (JobIngestionService, JobFilterService, JobClassifierService, JobExtractorService, JobEmbeddingService, AIProviderService, AdminAlertService)
+- [x] T039 [P] Update src/repositories/__init__.py to export SpamRuleRepository
+- [x] T040 [P] Update workers/__init__.py to export Celery app
+- [x] T041 Run full integration test suite and verify 80% coverage minimum on new service files
+- [x] T042 Run quickstart.md validation: execute migration, start Celery worker + beat, verify pipeline runs and stores jobs
+- [x] T043 Code cleanup: verify all files under 200 lines, all functions under 20 lines, all functions have type hints, no magic numbers, no hardcoded secrets
+- [x] T044 Fix test quality: patch _spam_rule_repo.get_active_rules as AsyncMock in pipeline integration test, ensure async methods use async mocks
+- [x] T045 Fix test quality: strengthen pipeline assertions to exact counts (channels_processed == 1, messages_scraped >= 1), remove unused fixtures and imports
+- [x] T046 Fix test quality: spam_rule_repository duplicate test — exactly one statement inside pytest.raises (await repo.create)
+- [x] T047 Fix test quality: text_normalizer — replace duplicate test_none_like_empty with distinct test_whitespace_only_string
+- [x] T048 Fix test quality: ai_provider_service — assert call_count == 9 for full fallback chain failure, call_count == 1 for regex skip
+- [x] T049 Fix test quality: job_filter_service — add mock_redis.setex.assert_awaited_once() to cache miss test
+- [x] T050 Add migration 006 for monitored_channels.last_message_id column (BigInteger, nullable)
+- [x] T051 Rewrite corrupted job_embedding_service.py — remove redundant dimension check, use logger.exception()
+- [x] T052 Rewrite corrupted job_extractor_service.py — fix imports, add _parse_response method, narrow exception catch
+- [x] T053 Fix spec doc: spec.md FR-020 — settings.monitoring.admin_telegram_chat_id → settings.telegram.admin_alert_channel_id
+- [x] T054 Fix spec doc: quickstart.md — get_session → get_async_session
+- [x] T055 Fix spec doc: data-model.md — add text language specifiers to fenced code blocks
+- [x] T056 Fix spec doc: contracts/ingestion-task.md — add blank line before fenced code block, fix duplicate line
+- [x] T057 Fix spec doc: research.md — clean up bot token auth description (remove empty StringSession references)
+- [x] T058 Fix job_filter_service.py: move module-level _redis/_ensure_redis/_get_redis to instance attributes, add _rules_cache and _settings to __init__, remove _load_rules_from_db() and inline into _get_rules(), remove redis.close() calls, fix test_cache_hit_path message, update integration test mocking
+- [x] T059 Fix admin_alert_service.py: replace StringSession() with file-based session "admin_alert_session" for bot auth, remove telethon.sessions.StringSession import, update logger.exception to use exc_info=e, update tests to verify TelegramClient constructor args
+- [x] T060 Fix ai_provider_service.py: convert module-level _handle_provider_error() to instance method _log_provider_error(), remove redis.close() from tests, ensure no connection thrashing
+- [x] T061 Fix test quality: strengthen test_ai_provider_service.py — verify regex_only not in attempted models for both fallback-chain tests, verify exact call_count; verify test_spam_rule_repository.py pytest.raises single statement; verify test_job_ingestion_pipeline.py concrete assertions (channels_processed == 1, messages_scraped >= 1)
+- [x] T062 Fix test_text_normalizer.py: replace duplicate test_whitespace_only_string with test_normalize_none_returns_empty_string (asserts normalize_text(None) == ""), add test_normalize_order_is_stable verifying whitespace collapse and case normalization
 
 ---
 

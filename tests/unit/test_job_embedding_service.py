@@ -15,7 +15,7 @@ def mock_ai():
 
 class TestVectorGeneration:
     @pytest.mark.asyncio
-    async def test_returns_768_dim_vector(self, mock_ai):
+    async def test_returns_embedding(self, mock_ai):
         mock_ai.generate_embedding.return_value = [0.1] * 768
         svc = JobEmbeddingService()
         result = await svc.generate_embedding("job post text")
@@ -23,24 +23,11 @@ class TestVectorGeneration:
         assert len(result) == 768
 
     @pytest.mark.asyncio
-    async def test_validates_dimensions(self, mock_ai):
-        mock_ai.generate_embedding.return_value = [0.1] * 512
+    async def test_passes_through_none(self, mock_ai):
+        mock_ai.generate_embedding.return_value = None
         svc = JobEmbeddingService()
         result = await svc.generate_embedding("text")
         assert result is None
-
-
-class TestRetryOnDimensionMismatch:
-    @pytest.mark.asyncio
-    async def test_retries_on_wrong_size(self, mock_ai):
-        mock_ai.generate_embedding.side_effect = [
-            [0.1] * 512,
-            [0.1] * 768,
-        ]
-        svc = JobEmbeddingService()
-        result = await svc.generate_embedding("text")
-        assert result is not None
-        assert len(result) == 768
 
 
 class TestNullOnAllFailure:

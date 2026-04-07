@@ -2,7 +2,7 @@ import json
 import logging
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from src.services.ai_provider_service import AIProviderService
 from src.services.exceptions import AIServiceUnavailableError
@@ -51,13 +51,13 @@ class JobExtractorService:
             )
             return self._parse_response(response)
         except AIServiceUnavailableError:
-            logger.error("All AI providers failed for extraction")
+            logger.exception("All AI providers failed for extraction")
             raise
 
     def _parse_response(self, response: str) -> JobExtractionResult:
         try:
             data = json.loads(response)
             return JobExtractionResult(**data)
-        except (json.JSONDecodeError, Exception) as e:
+        except (json.JSONDecodeError, ValidationError) as e:
             logger.warning("Failed to parse extraction response: %s", e)
             return JobExtractionResult()
