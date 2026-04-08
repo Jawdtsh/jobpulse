@@ -6,6 +6,7 @@ from src.models.job_match import JobMatch
 from src.models.job_report import JobReport
 from src.models.monitored_channel import MonitoredChannel
 from src.models.referral_reward import ReferralReward
+from src.models.spam_rule import SpamRule
 from src.models.subscription import Subscription
 from src.models.telegram_session import TelegramSession
 from src.models.user import User
@@ -22,6 +23,7 @@ __all__ = [
     "JobReport",
     "MonitoredChannel",
     "ReferralReward",
+    "SpamRule",
     "Subscription",
     "TelegramSession",
     "User",

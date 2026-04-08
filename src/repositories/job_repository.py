@@ -47,8 +47,10 @@ class JobRepository(AbstractRepository[Job]):
         requirements: Optional[list] = None,
         skills: Optional[list[str]] = None,
         embedding_vector: Optional[list[float]] = None,
+        content_hash: Optional[str] = None,
     ) -> Job:
-        content_hash = generate_content_hash(f"{title}{company}{description}")
+        if content_hash is None:
+            content_hash = generate_content_hash(f"{title}{company}{description}")
         return await self.create(
             telegram_message_id=telegram_message_id,
             title=title,
