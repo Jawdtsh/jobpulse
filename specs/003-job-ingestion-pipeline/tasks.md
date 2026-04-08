@@ -194,6 +194,7 @@ All seeded rules should have is_active=True.
 - [x] T067 Add Redis distributed lock to run_pipeline(): acquire SET pipeline:lock NX EX 180 before pipeline execution, return early with status="skipped" if lock already held, release lock in finally block via DEL pipeline:lock; add _get_redis() instance method following job_filter_service.py pattern; update integration test to mock Redis lock (svc._redis.set.return_value=True, assert delete awaited)
 - [x] T068 Verify workers/celery_app.py and workers/tasks/ingestion_tasks.py exist; remove duplicate Redis lock from ingestion_tasks.py (lock now handled inside run_pipeline() per T067); keep task as thin orchestrator that wires dependencies and delegates to JobIngestionService.run_pipeline()
 - [x] T069 Fix test quality issues: (1) remove unused channel_repo fixture from test_job_ingestion_pipeline.py; (2) add test_invalid_rule_type_rejected to TestRuleTypeValidation in test_spam_rule_repository.py (asserts IntegrityError on invalid rule_type); (3) change messages_scraped >= 1 to == 2 (exact count per TQ-002); (4) test_skips_regex_only_in_chain already uses patched chain ["regex_only", "glm-4.7-flash"] and verifies only real provider attempted (T064)
+- [x] T070 Fix ai_provider_service.py: (A) CRITICAL — fix _google_embedding() parameter order (model first, text second) and response access (result["embedding"] not result["embedding"][0]) per google-generativeai 0.8.3 API; (B) fallback chain already fixed (T064); (C) simplify check_daily_limit return to single expression (Ruff SIM103)
 
 ---
 

@@ -282,9 +282,9 @@ class AIProviderService:
     ) -> list[float]:
         genai.configure(api_key=self._settings.ai.gemini_api_key)
         result = await asyncio.to_thread(
-            genai.embed_content, [text], model=f"models/{model_name}"
+            genai.embed_content, f"models/{model_name}", text
         )
-        return result["embedding"][0]
+        return result["embedding"]
 
     async def _openai_embedding(
         self,
@@ -304,9 +304,7 @@ class AIProviderService:
         redis = _get_redis()
         key = _REDIS_KEY_TPL.format(model=model_name, date=_today())
         current = await redis.get(key)
-        if current is not None and int(current) >= rpd:
-            return False
-        return True
+        return current is None or int(current) < rpd
 
     async def increment_usage(self, model_name: str) -> int:
         redis = _get_redis()
