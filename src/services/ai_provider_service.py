@@ -17,7 +17,6 @@ from config.ai_models import (
 from config.settings import get_settings
 from src.services.exceptions import (
     AIServiceUnavailableError,
-    DailyLimitReachedError,
     InvalidEmbeddingDimensionsError,
     InvalidModelTypeError,
 )
@@ -104,7 +103,7 @@ class AIProviderService:
             if not provider_info:
                 continue
             if not await self.check_daily_limit(model_name):
-                raise DailyLimitReachedError(model_name)
+                continue
             result = await self._call_with_retries(
                 model_name,
                 provider_info,
@@ -229,7 +228,7 @@ class AIProviderService:
         chain = FALLBACK_CHAIN.get("embedder", [])
         for model_name in chain:
             if not await self.check_daily_limit(model_name):
-                return None
+                continue
             embedding = await self._try_embedding_model(
                 model_name, text, expected_dimensions
             )

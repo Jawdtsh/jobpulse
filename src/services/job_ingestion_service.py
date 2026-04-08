@@ -2,6 +2,7 @@ import logging
 import time
 from typing import Optional
 
+import redis.asyncio as aioredis
 from sqlalchemy.ext.asyncio import AsyncSession
 from telethon.errors import (
     ChannelInvalidError,
@@ -9,6 +10,7 @@ from telethon.errors import (
     FloodWaitError,
 )
 
+from config.settings import get_settings
 from src.repositories.channel_repository import ChannelRepository
 from src.repositories.job_repository import JobRepository
 from src.repositories.spam_rule_repository import SpamRuleRepository
@@ -24,6 +26,9 @@ from src.services.telegram_scraper_service import TelegramScraperService
 from src.utils.content_hasher import compute_content_hash
 
 logger = logging.getLogger(__name__)
+
+_PIPELINE_LOCK_KEY = "pipeline:lock"
+_PIPELINE_LOCK_TTL = 180
 
 
 class JobIngestionService:
@@ -48,18 +53,38 @@ class JobIngestionService:
         self._job_repo = JobRepository(session)
         self._errors: list[dict] = []
         self._alert_service: Optional[AdminAlertService] = None
+        self._redis: Optional[aioredis.Redis] = None
+
+    def _get_redis(self) -> aioredis.Redis:
+        if self._redis is None:
+            settings = get_settings()
+            self._redis = aioredis.from_url(
+                settings.redis.redis_url, decode_responses=True
+            )
+        return self._redis
 
     async def run_pipeline(self) -> dict:
         start = time.time()
         metrics = self._init_metrics()
-        self._errors = []
-        self._alert_service = AdminAlertService()
-        await self._scrape_channels(metrics)
-        metrics["errors"] = self._errors
-        metrics["duration_seconds"] = round(time.time() - start, 2)
-        metrics["status"] = self._compute_status(metrics)
-        logger.info("Pipeline completed: %s", metrics)
-        return metrics
+        redis = self._get_redis()
+        acquired = await redis.set(
+            _PIPELINE_LOCK_KEY, "1", nx=True, ex=_PIPELINE_LOCK_TTL
+        )
+        if not acquired:
+            logger.warning("Pipeline already running, skipping this cycle")
+            metrics["status"] = "skipped"
+            return metrics
+        try:
+            self._errors = []
+            self._alert_service = AdminAlertService()
+            await self._scrape_channels(metrics)
+            metrics["errors"] = self._errors
+            metrics["duration_seconds"] = round(time.time() - start, 2)
+            metrics["status"] = self._compute_status(metrics)
+            logger.info("Pipeline completed: %s", metrics)
+            return metrics
+        finally:
+            await redis.delete(_PIPELINE_LOCK_KEY)
 
     def _init_metrics(self) -> dict:
         return {
@@ -99,12 +124,25 @@ class JobIngestionService:
     async def _process_channel(self, channel, metrics: dict) -> None:
         log_ctx = {"channel_id": str(channel.id), "channel_username": channel.username}
         logger.info("Processing channel %s", channel.username, extra=log_ctx)
-
         try:
             session = await self._get_active_session()
         except SessionExhaustedError:
             raise
+        try:
+            messages = await self._scrape_channel(channel, session, log_ctx)
+        except Exception:
+            return
+        metrics["messages_scraped"] += len(messages)
+        await self._update_channel_cursor(channel, messages)
+        filtered = await self._filter_messages(messages, channel, log_ctx)
+        metrics["messages_filtered"] += len(filtered)
+        classified = await self._classify_messages(filtered, metrics, log_ctx)
+        extracted = await self._extract_jobs(classified, metrics, log_ctx)
+        await self._store_jobs(extracted, channel, metrics, log_ctx)
+        await self._channel_repo.mark_scraped(channel.id)
+        await self._session.flush()
 
+    async def _scrape_channel(self, channel, session, log_ctx: dict) -> list:
         after_id = getattr(channel, "last_message_id", None)
         try:
             messages = await self._scraper.fetch_messages(
@@ -114,34 +152,34 @@ class JobIngestionService:
             )
             await self._session_repo.mark_used(session.id)
             await self._session.flush()
-        except FloodWaitError as e:
-            await self._handle_session_ban(session, e, log_ctx)
-            return
-        except (ChannelPrivateError, ChannelInvalidError) as e:
-            await self._handle_session_ban(session, e, log_ctx)
-            return
-        except ChannelInaccessibleError:
-            await self._handle_channel_inaccessible(channel, log_ctx)
-            return
+            return messages
         except Exception as e:
-            logger.error("Scrape error for %s: %s", channel.username, e)
+            await self._handle_scrape_exception(channel, session, e, log_ctx)
+            raise
+
+    async def _handle_scrape_exception(
+        self, channel, session, error: Exception, log_ctx: dict
+    ) -> None:
+        if isinstance(error, FloodWaitError):
+            await self._handle_flood_wait(session, error, log_ctx)
+        elif isinstance(error, (ChannelPrivateError, ChannelInvalidError)):
+            await self._handle_session_ban(session, error, log_ctx)
+        elif isinstance(error, ChannelInaccessibleError):
+            await self._handle_channel_inaccessible(channel, log_ctx)
+        else:
+            logger.error("Scrape error for %s: %s", channel.username, error)
             self._errors.append(
-                {"stage": "scrape", "channel_id": str(channel.id), "error": str(e)}
+                {"stage": "scrape", "channel_id": str(channel.id), "error": str(error)}
             )
-            return
 
-        metrics["messages_scraped"] += len(messages)
-        await self._update_channel_cursor(channel, messages)
-
-        filtered = self._filter_messages(messages, channel, log_ctx)
-        metrics["messages_filtered"] += len(filtered)
-
-        classified = await self._classify_messages(filtered, metrics, log_ctx)
-        extracted = await self._extract_jobs(classified, metrics, log_ctx)
-        await self._store_jobs(extracted, channel, metrics, log_ctx)
-
-        await self._channel_repo.mark_scraped(channel.id)
-        await self._session.flush()
+    async def _handle_flood_wait(self, session, error, log_ctx: dict) -> None:
+        wait_seconds = getattr(error, "seconds", 60)
+        logger.warning(
+            "FloodWait %ds for session %s", wait_seconds, session.id, extra=log_ctx
+        )
+        self._errors.append(
+            {"stage": "scrape", "error": "flood_wait", "wait_seconds": wait_seconds}
+        )
 
     async def _handle_session_ban(self, session, error, log_ctx: dict) -> None:
         logger.warning("Session banned/error: %s", error, extra=log_ctx)
@@ -169,7 +207,7 @@ class JobIngestionService:
             await self._channel_repo.update_last_message_id(channel.id, max_id)
             await self._session.flush()
 
-    def _filter_messages(
+    async def _filter_messages(
         self,
         messages: list,
         channel,
@@ -177,7 +215,7 @@ class JobIngestionService:
     ) -> list:
         filtered = []
         for msg in messages:
-            passed = self._filter.filter_message(msg["text"])
+            passed = await self._filter.filter_message(msg["text"])
             if passed:
                 filtered.append(msg)
             else:
@@ -190,8 +228,6 @@ class JobIngestionService:
         return filtered
 
     async def _get_active_session(self):
-        from config.settings import get_settings
-
         session = await self._session_repo.get_next_active_session()
         if session is None:
             raise SessionExhaustedError()
@@ -240,6 +276,8 @@ class JobIngestionService:
                 msg["extracted"] = result
                 extracted.append(msg)
                 metrics["jobs_extracted"] += 1
+            except DailyLimitReachedError:
+                raise
             except Exception as e:
                 logger.error(
                     "Extraction error: %s",

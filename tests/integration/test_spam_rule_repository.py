@@ -83,3 +83,10 @@ class TestRuleTypeValidation:
     async def test_valid_scam_indicator(self, repo: SpamRuleRepository):
         rule = await repo.create(pattern="ind", rule_type="scam_indicator")
         assert rule.rule_type == "scam_indicator"
+
+    @pytest.mark.asyncio
+    async def test_invalid_rule_type_rejected(self, repo: SpamRuleRepository):
+        from sqlalchemy.exc import IntegrityError
+
+        with pytest.raises(IntegrityError):
+            await repo.create(pattern="test_pattern", rule_type="invalid_type")

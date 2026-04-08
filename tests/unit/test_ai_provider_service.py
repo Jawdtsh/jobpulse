@@ -5,7 +5,6 @@ import pytest
 from src.services.ai_provider_service import AIProviderService
 from src.services.exceptions import (
     AIServiceUnavailableError,
-    DailyLimitReachedError,
     InvalidModelTypeError,
 )
 
@@ -65,6 +64,10 @@ class TestFallbackChain:
             return "ok"
 
         with (
+            patch(
+                "src.services.ai_provider_service.FALLBACK_CHAIN",
+                {"classifier": ["regex_only", "glm-4.7-flash"]},
+            ),
             patch.object(
                 service, "_call_provider", side_effect=counting_call
             ) as mock_call,
@@ -75,14 +78,38 @@ class TestFallbackChain:
             assert result == "ok"
             assert mock_call.call_count == 1
             assert "regex_only" not in attempted_models
+            assert attempted_models == ["glm-4.7-flash"]
 
 
 class TestDailyLimit:
     @pytest.mark.asyncio
-    async def test_raises_when_limit_reached(self, service):
+    async def test_raises_unavailable_when_all_limits_reached(self, service):
         with patch.object(service, "check_daily_limit", return_value=False):
-            with pytest.raises(DailyLimitReachedError):
+            with pytest.raises(AIServiceUnavailableError):
                 await service.call_model("classifier", "prompt")
+
+    @pytest.mark.asyncio
+    async def test_falls_through_to_next_on_daily_limit(self, service):
+        call_log = []
+
+        async def track_call(
+            model_name, provider_info, prompt, system_prompt, response_format, timeout
+        ):
+            call_log.append(model_name)
+            return "ok"
+
+        async def limit_first_only(model_name):
+            return model_name != "gemini-2.5-flash-lite"
+
+        with (
+            patch.object(service, "_call_provider", side_effect=track_call),
+            patch.object(service, "check_daily_limit", side_effect=limit_first_only),
+            patch.object(service, "increment_usage"),
+        ):
+            result = await service.call_model("classifier", "prompt")
+            assert result == "ok"
+            assert "gemini-2.5-flash-lite" not in call_log
+            assert len(call_log) == 1
 
     @pytest.mark.asyncio
     async def test_check_daily_limit_returns_true(self, service):

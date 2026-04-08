@@ -91,6 +91,7 @@ As the system, I need to check for duplicate jobs using content hashing and stor
 
 ### Edge Cases
 
+- **Telegram session rate-limited (FloodWaitError)**: System logs the temporary wait period, does NOT mark session as permanently banned, and continues processing other channels with the next available session
 - **Telegram session banned**: System rotates to next available session from the session pool; if all sessions are banned, pipeline pauses and sends an alert to the designated admin Telegram channel
 - **Post in unsupported language**: System extracts what is possible from the text and logs a language detection warning; the job is still stored with partial data
 - **Embedding returns wrong dimensions**: Vector length is validated (must be 768); if wrong, the system retries; if all retries fail, the job is saved with a null embedding
@@ -112,11 +113,11 @@ As the system, I need to check for duplicate jobs using content hashing and stor
 - **FR-006**: System MUST compute SHA-256 content hash from normalized post text (normalization steps: convert to lowercase, strip leading/trailing whitespace, collapse multiple consecutive spaces to single space, remove all URLs, remove all emojis and special characters) and check hash against jobs.content_hash column across all channels to prevent global duplicates
 - **FR-007**: System MUST generate a 768-dimensional vector embedding for each unique job post for semantic matching
 - **FR-008**: System MUST store unique jobs with all extracted fields, content hash, embedding vector, source channel reference, and Telegram message ID
-- **FR-009**: System MUST rotate Telegram sessions when the current session is banned or rate-limited
-- **FR-010**: System MUST implement a fallback chain for AI failures, trying providers in order until one succeeds or all are exhausted
+- **FR-009**: System MUST handle FloodWaitError as a temporary rate limit (log wait period, continue with next session, do NOT mark session as banned) and rotate to a new session when the current session is permanently banned
+- **FR-010**: System MUST implement a fallback chain for AI failures, trying providers in order until one succeeds or all are exhausted; when a model's daily limit is reached, the chain MUST continue to the next model rather than aborting immediately
 - **FR-011**: System MUST enforce exponential backoff (1s, 2s, 4s) with a maximum of 3 retries for failed AI requests
 - **FR-012**: System MUST enforce 30-second timeouts on all AI classification, extraction, and embedding requests
-- **FR-013**: System MUST respect daily API usage limits for each AI model and pause processing when limits are reached
+- **FR-013**: System MUST respect daily API usage limits for each AI model; when a model's limit is reached the system MUST attempt the next model in the fallback chain; processing pauses only when ALL models in the chain have exhausted their limits
 - **FR-014**: System MUST increment channel-level counters (jobs_found, false_positives) based on pipeline outcomes
 - **FR-015**: System MUST mark channels as inactive when they become inaccessible (deleted, private, or permission errors)
 - **FR-016**: System MUST log all AI responses and pipeline errors for debugging and monitoring
@@ -124,6 +125,7 @@ As the system, I need to check for duplicate jobs using content hashing and stor
 - **FR-018**: System MUST handle partial extractions gracefully, storing null for any fields that cannot be parsed from the post text
 - **FR-019**: System MUST execute the ingestion pipeline automatically on a fixed 3-minute interval via the Celery task scheduler
 - **FR-020**: System MUST send alerts to admin Telegram channel (chat ID loaded from settings.telegram.admin_alert_channel_id (from TelegramSettings in config/settings.py)) when critical pipeline failures occur; alert message format: "🚨 [SEVERITY] Pipeline Alert\n\n{error_details}\n\nTimestamp: {iso_timestamp}"; CRITICAL severity triggers: all Telegram sessions banned, all AI providers exhausted after fallback chain, or pipeline worker crash; individual job extraction failures MUST be logged only without alert
+- **FR-021**: System MUST acquire a Redis distributed lock (key=`pipeline:lock`, TTL=180s) before starting pipeline execution using SET NX EX; if the lock is already held, the pipeline MUST skip the current cycle and return early with status "skipped"; the lock MUST be released in a finally block after pipeline completion to prevent concurrent pipeline runs and duplicate job inserts
 
 ### Key Entities
 
@@ -167,3 +169,6 @@ As the system, I need to check for duplicate jobs using content hashing and stor
 - **TQ-004**: Duplicate test cases MUST be replaced with distinct edge-case scenarios (no two tests assert the same behavior)
 - **TQ-005**: Cache miss tests MUST assert both the DB fallback call and the cache write (e.g., `setex.assert_awaited_once()`)
 - **TQ-006**: Fallback chain tests MUST assert the exact number of provider attempts (e.g., `call_count == 9` for 3 models × 3 retries)
+- **TQ-007**: All async service calls in orchestration code MUST use `await`; unawaited coroutines are always truthy and silently bypass filtering/classification logic (Constitution Principle X — Async Best Practices)
+- **TQ-008**: Fallback chain daily-limit tests MUST verify the chain continues to the next model when a model's limit is reached; tests MUST NOT assert DailyLimitReachedError on the first model in the chain (Constitution Principle II — Open/Closed; Constitution Principle IX — Error Handling)
+- **TQ-009**: FloodWaitError MUST be handled as a temporary condition (no mark_banned); DailyLimitReachedError MUST propagate immediately from extraction/classification loops, not be swallowed by catch-all Exception handlers (Constitution Principle IX — Error Handling)

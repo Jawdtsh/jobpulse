@@ -1,16 +1,10 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.repositories.channel_repository import ChannelRepository
 from src.repositories.spam_rule_repository import SpamRuleRepository
-
-
-@pytest_asyncio.fixture
-async def channel_repo(db_session: AsyncSession):
-    return ChannelRepository(db_session)
 
 
 class TestScrapeAndFilterFlow:
@@ -62,6 +56,11 @@ class TestScrapeAndFilterFlow:
                         session=db_session,
                         filter_service=filter_svc,
                     )
+                    svc._redis = AsyncMock()
+                    svc._redis.set.return_value = True
+                    svc._redis.delete = AsyncMock()
                     metrics = await svc.run_pipeline()
                     assert metrics["channels_processed"] == 1
-                    assert metrics["messages_scraped"] >= 1
+                    assert metrics["messages_scraped"] == 2
+                    assert metrics["messages_filtered"] < metrics["messages_scraped"]
+                    svc._redis.delete.assert_awaited_once()
