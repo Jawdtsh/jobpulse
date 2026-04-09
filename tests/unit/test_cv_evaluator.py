@@ -9,8 +9,7 @@ from src.services.cv_evaluator import CVEvaluator, CVEvaluationResult
 
 @pytest.fixture
 def mock_ai_service():
-    svc = AsyncMock()
-    return svc
+    return AsyncMock()
 
 
 @pytest.fixture

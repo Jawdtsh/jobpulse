@@ -1,4 +1,5 @@
 import logging
+import uuid
 from typing import Optional
 
 from src.repositories.cv_repository import CVRepository
@@ -17,7 +18,7 @@ class CVEmbeddingService:
     async def generate_and_store(
         self,
         repo: CVRepository,
-        cv_id: str,
+        cv_id: uuid.UUID,
         text: str,
     ) -> Optional[list[float]]:
         try:
@@ -26,8 +27,9 @@ class CVEmbeddingService:
                 await repo.update_embedding(cv_id, embedding)
                 logger.info("Embedding stored cv_id=%s dim=%d", cv_id, len(embedding))
                 return embedding
-            logger.warning("Embedding generation returned None cv_id=%s", cv_id)
-            return None
+            else:
+                logger.warning("Embedding generation returned None cv_id=%s", cv_id)
+                return None
         except Exception:
             logger.exception("Embedding generation failed cv_id=%s", cv_id)
             return None

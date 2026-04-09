@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Optional
 
@@ -24,10 +24,14 @@ class CVRepository(AbstractRepository[UserCV]):
         return list(result.scalars().all())
 
     async def get_active_cv(self, user_id: uuid.UUID) -> Optional[UserCV]:
-        stmt = select(UserCV).where(
-            UserCV.user_id == user_id,
-            UserCV.is_active,
-            UserCV.deleted_at.is_(None),
+        stmt = (
+            select(UserCV)
+            .where(
+                UserCV.user_id == user_id,
+                UserCV.is_active,
+                UserCV.deleted_at.is_(None),
+            )
+            .order_by(UserCV.created_at.desc())
         )
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none()
@@ -141,7 +145,7 @@ class CVRepository(AbstractRepository[UserCV]):
             return None
 
         cv.is_active = False
-        cv.deleted_at = datetime.utcnow()
+        cv.deleted_at = datetime.now(timezone.utc)
         await self._session.flush()
         return cv
 
@@ -166,10 +170,15 @@ class CVRepository(AbstractRepository[UserCV]):
             experience_summary=experience_summary,
             completeness_score=completeness_score,
             improvement_suggestions=improvement_suggestions,
-            evaluated_at=datetime.utcnow(),
+            evaluated_at=datetime.now(timezone.utc),
         )
 
-    async def get_all_for_reencryption(self, batch_size: int = 100) -> list[UserCV]:
-        stmt = select(UserCV).where(UserCV.deleted_at.is_(None)).limit(batch_size)
+    async def get_all_for_reencryption(
+        self, batch_size: int = 100, last_id: uuid.UUID | None = None
+    ) -> list[UserCV]:
+        stmt = select(UserCV).where(UserCV.deleted_at.is_(None))
+        if last_id is not None:
+            stmt = stmt.where(UserCV.id > last_id)
+        stmt = stmt.order_by(UserCV.id.asc()).limit(batch_size)
         result = await self._session.execute(stmt)
         return list(result.scalars().all())

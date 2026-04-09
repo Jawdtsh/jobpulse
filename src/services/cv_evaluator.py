@@ -54,7 +54,7 @@ class CVEvaluator:
         try:
             data = json.loads(raw)
         except json.JSONDecodeError:
-            logger.error("AI returned invalid JSON: %s", raw[:200])
+            logger.exception("AI returned invalid JSON: %s", raw[:200])
             return CVEvaluationResult()
 
         skills = data.get("skills", [])

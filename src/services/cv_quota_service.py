@@ -17,6 +17,19 @@ QUOTA_LIMITS = {
     "pro": 10,
 }
 
+_CHECK_AND_INCREMENT_LUA = """
+local current = tonumber(redis.call('GET', KEYS[1]) or '0')
+local limit = tonumber(ARGV[1])
+if current >= limit then
+    return -1
+end
+local count = redis.call('INCR', KEYS[1])
+if count == 1 then
+    redis.call('EXPIRE', KEYS[1], ARGV[2])
+end
+return count
+"""
+
 _redis: Optional[aioredis.Redis] = None
 
 
@@ -44,19 +57,11 @@ def _ttl_seconds() -> int:
 
 
 class CVQuotaService:
-    async def check_quota(self, user_id: uuid.UUID, tier: str) -> tuple[bool, int]:
+    async def check_and_increment_quota(self, user_id: uuid.UUID, tier: str) -> int:
         limit = QUOTA_LIMITS.get(tier, 1)
         redis = _get_redis()
         key = _quota_key(user_id)
-        current = await redis.get(key)
-        current_count = int(current) if current else 0
-        remaining = max(0, limit - current_count)
-        return current_count < limit, remaining
-
-    async def increment_usage(self, user_id: uuid.UUID) -> int:
-        redis = _get_redis()
-        key = _quota_key(user_id)
-        count = await redis.incr(key)
-        if count == 1:
-            await redis.expire(key, _ttl_seconds())
-        return count
+        result = await redis.eval(
+            _CHECK_AND_INCREMENT_LUA, 1, key, str(limit), str(_ttl_seconds())
+        )
+        return int(result)

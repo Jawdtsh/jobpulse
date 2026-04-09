@@ -233,3 +233,39 @@ The system tracks monthly CV evaluation usage and enforces tier-based quotas.
 - Monthly quota resets at the beginning of each calendar month (1st day)
 - Job matching system will use active CVs with valid embeddings
 - Encryption key rotation involves re-encrypting all stored CV content
+
+## Bugfix Log
+
+### 2026-04-09: Type Safety Fixes (Constitution Principle III)
+
+- **BUG-001**: `cv_embedding.py` — `generate_and_store` accepted `cv_id: str` but `CVRepository.update_embedding` expects `uuid.UUID`. This type mismatch would cause asyncpg serialization errors when passing a string UUID to a PostgreSQL UUID column. Fixed by changing parameter type to `uuid.UUID`.
+- **BUG-002**: `cv_service.py` — `list_user_cvs` missing return type annotation `list[UserCV]`. Fixed.
+- **BUG-003**: `cv_service.py` — `activate_cv` missing return type annotation `Optional[UserCV]`. Fixed.
+- **BUG-004**: `cv_service.py` — `upload_cv` used `count_by_user` (counts ALL non-deleted CVs) for tier limit enforcement. Per FR-021, limits apply to ACTIVE CVs only. Users with inactive CVs were incorrectly blocked. Fixed by switching to `count_active_by_user`.
+- **BUG-005**: `cv_service.py` — `upload_cv` missing concurrent upload lock. Per SPEC-004 clarification, Redis key `cv:upload:{user_id}` with 60s TTL must be set (NX) before upload and deleted in a `finally` block to prevent duplicate CVs and quota bypass from concurrent uploads. Added `CVUploadInProgressError` exception.
+- **BUG-006**: `cv_quota_service.py` — `check_quota` (GET) and `increment_usage` (INCR + EXPIRE) executed as separate Redis operations, allowing race conditions where concurrent requests both pass the check before either increments. Violates FR-029 and SC-007. Fixed by adding atomic `check_and_increment_quota` method using a Lua script that checks limit, increments, and sets TTL in a single Redis EVAL call.
+- **BUG-007**: `cv_quota_service.py` — `INCR` + `EXPIRE` not atomic in `increment_usage`. If the process crashes between them, the key persists indefinitely without TTL (zombie key). Fixed by incorporating EXPIRE into the Lua script body where `INCR` and conditional `EXPIRE` are atomic. `cv_service.py` updated to use the single atomic method.
+- **BUG-008**: `admin_service.py` + `cv_repository.py` — `reencrypt_cvs` infinite loop: `get_all_for_reencryption` has no pagination, so it returns the same first 100 records every iteration. Fixed by adding cursor-based pagination (`last_id` parameter, `WHERE id > :last_id ORDER BY id ASC`) and tracking the last processed CV ID across iterations.
+- **BUG-009**: `admin_service.py` — `encode("ascii")` in re-encryption crashes on non-English CVs (Arabic, accented characters) with `UnicodeEncodeError`. Fixed by changing to `encode("utf-8")`.
+- **BUG-010**: `admin_service.py` — Lock release cleanup used `try/except pass`. Replaced with `contextlib.suppress(Exception)` per Constitution Principle III (Clean Code).
+- **BUG-011**: `cv_service.py` — `evaluate_cv` gated CV activation on `completeness_score > 0`. SPEC-004 FR-008/FR-010 have no minimum score for activation; only FR-014 (40% threshold) affects referral warning. A CV scoring 0 (legitimate edge case) was incorrectly blocked from activation. Fixed by removing the score gate.
+- **BUG-012**: `cv_service.py` — Evaluation log included `file_format: None, file_size: None` in the extra dict. These fields belong to the upload log context, not evaluation. Removed to avoid polluting logs with useless null fields (FR-032 compliance).
+- **BUG-013**: `cv_service.py` — `activate_cv` called `celery_app.send_task()` synchronously inside an async function, blocking the event loop. Fixed by wrapping in `asyncio.to_thread()` (Constitution Principle X).
+- **BUG-014**: `cv_parser.py` + `requirements.txt` — PyPDF2 deprecated with CVE-2023-36464 (GHSA-4vvm-4w3v-6mr8), unpatched infinite loop on malformed PDFs (DoS risk). Replaced with `pypdf==3.17.4`. Updated `from PyPDF2 import PdfReader` to `from pypdf import PdfReader`.
+- **BUG-015**: `cv_parser.py` — `extract_text_from_docx` had no ImportError guard for `python-docx`. Missing dependency caused unhandled ImportError instead of graceful degradation. Added try/except ImportError returning empty string with warning. Also wrapped extraction in try/except Exception for general failure handling (FR-007 graceful degradation).
+
+### 2026-04-09: Documentation & Code Quality Fixes
+
+- **DOC-001**: `data-model.md` — UserCV entity table missing `deleted_at` field. Transition table references `deleted_at` (soft delete) and SPEC clarification confirms soft delete. Added row after `updated_at`: `| deleted_at | Timestamp | nullable | Soft delete timestamp |`.
+- **DOC-002**: `quickstart.md` — CVEvaluationResult dataclass showed `completeness_score: float` but actual implementation uses `Numeric(5,2)` / `Decimal` for precision. Fixed by adding `from decimal import Decimal` import and changing type to `completeness_score: Decimal`.
+- **CR-001**: `exceptions.py` — CVFormatNotSupportedError.__init__ parameter named `format` shadows Python built-in. Fixed by renaming to `file_format`, updating `self.format` to `self.file_format`, and updating f-string.
+- **CR-002**: `cv_embedding.py` — Success return path not in else block after `if embedding is not None` check (Ruff TRY300). Fixed by adding `else:` block for the warning and None return.
+- **CR-003**: `cv_evaluator.py` — `except json.JSONDecodeError` uses `logger.error` which discards stack trace. Fixed by changing to `logger.exception` to preserve full stack trace (Ruff TRY400).
+
+### 2026-04-09: Regression & Deferred Fixes
+
+- **FIX-A**: `cv_repository.py` — Regressions from C-001 fix: `soft_delete_cv()` and `update_evaluation()` still used `datetime.utcnow()` instead of timezone-aware `datetime.now(timezone.utc)`. Fixed both occurrences (violates FR-015, Constitution Principle III).
+- **FIX-B**: `cv_service.py` — Regressions from CR-format: `validate_file` still passed `format=ext` instead of `file_format=ext` to `CVFormatNotSupportedError`, breaking error messages. Fixed.
+- **FIX-C**: `cv_quota_service.py` — Dead code: `check_quota` and `increment_usage` methods became unused after Group 3 added atomic `check_and_increment_quota`. Removed both methods.
+- **FIX-D**: `job_repository.py` — SQLAlchemy filter bug: `not Job.is_archived` evaluates Python truthiness (always True), silently dropping the filter. Fixed by changing to `~Job.is_archived` (bitwise NOT, correct SQLAlchemy negation). Applied to `get_active_jobs()` and `find_similar()`.
+- **FIX-E**: `admin_service.py` — Resource leak: `reencrypt_cvs` creates Redis connection via `aioredis.from_url()` but never closes it. Fixed by adding `await redis.aclose()` in finally block after lock release.

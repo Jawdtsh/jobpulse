@@ -1,4 +1,7 @@
+import contextlib
 import logging
+import uuid
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.repositories.cv_repository import CVRepository
@@ -18,6 +21,7 @@ class AdminService:
 
     async def reencrypt_cvs(self, old_fernet_key: str) -> dict:
         import redis.asyncio as aioredis
+
         from config.settings import get_settings
         from cryptography.fernet import Fernet
 
@@ -39,8 +43,11 @@ class AdminService:
             )
 
             total_reencrypted = 0
+            last_id: uuid.UUID | None = None
             while True:
-                cvs = await self._repo.get_all_for_reencryption(batch_size=_BATCH_SIZE)
+                cvs = await self._repo.get_all_for_reencryption(
+                    batch_size=_BATCH_SIZE, last_id=last_id
+                )
                 if not cvs:
                     break
 
@@ -48,7 +55,7 @@ class AdminService:
                     try:
                         old_encrypted = cv.content.decode("utf-8")
                         plaintext = old_fernet.decrypt(
-                            old_encrypted.encode("ascii")
+                            old_encrypted.encode("utf-8")
                         ).decode("utf-8")
                         new_encrypted = encrypt_data(plaintext)
                         cv.content = new_encrypted.encode("utf-8")
@@ -60,6 +67,7 @@ class AdminService:
                             exc_info=True,
                         )
 
+                last_id = cvs[-1].id
                 await self._session.flush()
                 logger.info("Re-encryption batch processed total=%d", total_reencrypted)
 
@@ -70,7 +78,6 @@ class AdminService:
             logger.exception("Re-encryption failed: %s", e)
             return {"status": "failed", "error": str(e)}
         finally:
-            try:
+            with contextlib.suppress(Exception):
                 await lock.release()
-            except Exception:
-                pass
+            await redis.aclose()

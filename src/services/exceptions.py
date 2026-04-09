@@ -56,10 +56,10 @@ class CVFileSizeExceededError(Exception):
 
 
 class CVFormatNotSupportedError(Exception):
-    def __init__(self, format: str = "", **context):
-        self.format = format
+    def __init__(self, file_format: str = "", **context):
+        self.file_format = file_format
         self.context = context
-        self.message = f"CV file format not supported: {format}"
+        self.message = f"CV file format not supported: {file_format}"
         super().__init__(self.message)
 
 
@@ -88,6 +88,15 @@ class CVLimitExceededError(Exception):
 
 class CVDeletedError(Exception):
     def __init__(self, message: str = "Cannot operate on deleted CV", **context):
+        self.message = message
+        self.context = context
+        super().__init__(self.message)
+
+
+class CVUploadInProgressError(Exception):
+    def __init__(
+        self, message: str = "Upload already in progress, please wait.", **context
+    ):
         self.message = message
         self.context = context
         super().__init__(self.message)

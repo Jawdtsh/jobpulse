@@ -24,6 +24,7 @@ Represents a user's uploaded CV with evaluation data.
 | evaluated_at | Timestamp | nullable | Last evaluation time |
 | created_at | Timestamp | not null | Upload timestamp |
 | updated_at | Timestamp | not null | Last modification |
+| deleted_at | Timestamp | nullable | Soft delete timestamp |
 
 **Relationships**:
 - User (1:N) - One user can have multiple CVs

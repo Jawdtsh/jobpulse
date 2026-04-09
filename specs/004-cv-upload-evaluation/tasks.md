@@ -124,6 +124,69 @@ Incremental Delivery: Each user story independently testable
 - [X] T039 Verify all tests pass (pytest)
 - [X] T040 Run lint and typecheck (ruff check . && ruff format .)
 - [X] T041 Verify integration: newly activated CVs successfully trigger the matching engine for the last 7 days of jobs.
+
+## Phase 12: Bugfix — Type Safety (Constitution Principle III)
+
+- [X] T042 Fix cv_embedding.py: change `cv_id: str` to `cv_id: uuid.UUID` in `generate_and_store` to prevent asyncpg serialization errors with PostgreSQL UUID columns.
+- [X] T043 Fix cv_service.py: add `list[UserCV]` return type annotation to `list_user_cvs`.
+- [X] T044 Fix cv_service.py: add `Optional[UserCV]` return type annotation to `activate_cv`.
+- [X] T045 Create tests/unit/test_cv_embedding.py with coverage for uuid.UUID parameter type.
+- [X] T046 Extend tests/unit/test_cv_service.py with tests for return types on list_user_cvs and activate_cv.
+
+## Phase 13: Bugfix — Active Count & Concurrent Upload Lock (Constitution Principle IX)
+
+- [X] T047 Add CVUploadInProgressError to src/services/exceptions.py for concurrent upload rejection.
+- [X] T048 Fix cv_service.py: replace `count_by_user` with `count_active_by_user` in upload_cv tier limit check (FR-021).
+- [X] T049 Add Redis concurrent upload lock to cv_service.py upload_cv: SET cv:upload:{user_id} NX EX 60, release in finally block.
+- [X] T050 Update tests/unit/test_cv_service.py: add tests for concurrent rejection, active count usage, lock release on error.
+
+## Phase 14: Bugfix — Atomic Quota Check-and-Increment (Constitution Principle IX/X)
+
+- [X] T051 Add atomic `check_and_increment_quota` method to src/services/cv_quota_service.py using Lua script (GET+compare+INCR+EXPIRE in single EVAL).
+- [X] T052 Update src/services/cv_service.py evaluate_cv to use atomic check_and_increment_quota instead of separate check_quota + increment_usage.
+- [X] T053 Create tests/unit/test_cv_quota_service.py with tests for atomic quota logic.
+- [X] T054 Add evaluate_cv tests to tests/unit/test_cv_service.py covering atomic quota flow and quota exceeded.
+
+## Phase 15: Bugfix — Re-encryption Infinite Loop, UTF-8, Lock Cleanup (C-004a, C-004b, CR-suppress)
+
+- [X] T055 Fix cv_repository.py get_all_for_reencryption: add cursor-based pagination with `last_id` parameter (`WHERE id > :last_id ORDER BY id ASC LIMIT batch_size`).
+- [X] T056 Fix admin_service.py reencrypt_cvs: track `last_id` across loop iterations, pass to pagination, terminate when batch returns fewer than batch_size.
+- [X] T057 Fix admin_service.py: change `encode("ascii")` to `encode("utf-8")` in re-encryption to handle non-English CV content.
+- [X] T058 Fix admin_service.py: replace `try/except pass` lock release with `contextlib.suppress(Exception)`.
+- [X] T059 Create tests/unit/test_admin_service.py with tests for cursor pagination, UTF-8 content, error skipping, and lock release.
+
+## Phase 16: Bugfix — Activation Gate, Null Log Fields, Blocking Call (H-002, H-003, H-004)
+
+- [X] T060 Fix cv_service.py evaluate_cv: remove `completeness_score > 0` gate from activation logic. CVs activate after successful evaluation regardless of score.
+- [X] T061 Fix cv_service.py evaluate_cv: remove `file_format: None, file_size: None` from evaluation log extra dict.
+- [X] T062 Fix cv_service.py activate_cv: wrap `celery_app.send_task()` in `asyncio.to_thread()` to prevent event loop blocking.
+- [X] T063 Add test `test_evaluate_cv_activates_with_zero_score` to tests/unit/test_cv_service.py.
+
+## Phase 17: Bugfix — PyPDF2 CVE + DOCX Error Handling (CVE-PyPDF2, CR-docx)
+
+- [X] T064 Replace PyPDF2>=3.0.0 with pypdf==3.17.4 in requirements.txt (CVE-2023-36464).
+- [X] T065 Update cv_parser.py: change `from PyPDF2 import PdfReader` to `from pypdf import PdfReader`.
+- [X] T066 Add ImportError guard to extract_text_from_docx: return empty string when python-docx not installed.
+- [X] T067 Add try/except Exception wrapper around DOCX extraction in extract_text_from_docx for graceful degradation.
+- [X] T068 Update tests/unit/test_cv_parser.py: fix pypdf mocks, add DOCX import error + exception tests.
+
+## Phase 18: Bugfix — Documentation & Code Quality
+
+- [X] T069 Fix data-model.md: add `deleted_at` field to UserCV entity table after `updated_at`.
+- [X] T070 Fix quickstart.md: add `from decimal import Decimal` import and change `completeness_score: float` to `completeness_score: Decimal`.
+- [X] T071 Fix exceptions.py: rename `format` parameter to `file_format` in CVFormatNotSupportedError to avoid shadowing built-in.
+- [X] T072 Fix cv_embedding.py: add `else:` block after `if embedding is not None` for proper control flow (Ruff TRY300).
+- [X] T073 Fix cv_evaluator.py: change `logger.error` to `logger.exception` in JSON decode error handler (Ruff TRY400).
+
+## Phase 19: Bugfix — Regression & Deferred Fixes
+
+- [X] T074 Fix cv_repository.py: replace `datetime.utcnow()` with `datetime.now(timezone.utc)` in soft_delete_cv() and update_evaluation().
+- [X] T075 Fix cv_service.py: change CVFormatNotSupportedError(format=ext) to CVFormatNotSupportedError(file_format=ext).
+- [X] T076 Fix cv_quota_service.py: remove dead code methods check_quota and increment_usage.
+- [X] T077 Fix job_repository.py: change `not Job.is_archived` to `~Job.is_archived` in get_active_jobs() and find_similar().
+- [X] T078 Fix admin_service.py: add await redis.aclose() in finally block to close Redis connection.
+- [X] T079 Update test_admin_service.py mock to include aclose method.
+
 ## Dependencies
 
 ```
@@ -174,7 +237,7 @@ US8 (Quota Tracking) ← Depends on US2
 
 ## Summary
 
-**Total Tasks**: 46  
+**Total Tasks**: 73  
 **User Stories**: 8 (US1-US8)  
 **MVP Scope**: Phase 3 (US1 - CV Upload)
 

@@ -30,7 +30,7 @@ class JobRepository(AbstractRepository[Job]):
         return result.scalar_one_or_none()
 
     async def get_active_jobs(self, skip: int = 0, limit: int = 100) -> list[Job]:
-        stmt = select(Job).where(not Job.is_archived).offset(skip).limit(limit)
+        stmt = select(Job).where(~Job.is_archived).offset(skip).limit(limit)
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
 
@@ -79,7 +79,7 @@ class JobRepository(AbstractRepository[Job]):
         stmt = (
             select(Job, similarity.label("similarity"))
             .where(
-                not Job.is_archived,
+                ~Job.is_archived,
                 Job.embedding_vector.isnot(None),
                 similarity >= threshold,
             )

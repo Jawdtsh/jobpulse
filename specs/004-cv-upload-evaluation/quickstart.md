@@ -64,11 +64,15 @@ class CVParserProtocol:
 
 ### CVEvaluator Interface
 ```python
+from dataclasses import dataclass, field
+from decimal import Decimal
+
+
 @dataclass
 class CVEvaluationResult:
     skills: list[str]
     experience_summary: str
-    completeness_score: float
+    completeness_score: Decimal
     improvement_suggestions: list[str]
 
 class CVEvaluatorProtocol:

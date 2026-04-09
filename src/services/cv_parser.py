@@ -30,7 +30,7 @@ class CVParser:
 
     async def _extract_pdf_primary(self, file_path: Path | BytesIO) -> str:
         try:
-            from PyPDF2 import PdfReader
+            from pypdf import PdfReader
 
             def _read():
                 reader = PdfReader(file_path)
@@ -45,7 +45,7 @@ class CVParser:
         except ImportError:
             return ""
         except Exception:
-            logger.warning("PyPDF2 extraction failed", exc_info=True)
+            logger.warning("pypdf extraction failed", exc_info=True)
             return ""
 
     async def _extract_pdf_fallback(self, file_path: Path | BytesIO) -> str:
@@ -67,13 +67,21 @@ class CVParser:
             return ""
 
     async def extract_text_from_docx(self, file_path: Path | BytesIO) -> str:
-        from docx import Document
+        try:
+            from docx import Document
+        except ImportError:
+            logger.warning("python-docx not installed, cannot extract DOCX")
+            return ""
 
         def _read():
             doc = Document(file_path)
             return "\n".join(p.text for p in doc.paragraphs if p.text)
 
-        return await asyncio.to_thread(_read)
+        try:
+            return await asyncio.to_thread(_read)
+        except Exception:
+            logger.warning("DOCX extraction failed", exc_info=True)
+            return ""
 
     async def extract_text_from_txt(self, file_path: Path | BytesIO) -> str:
         if isinstance(file_path, BytesIO):
