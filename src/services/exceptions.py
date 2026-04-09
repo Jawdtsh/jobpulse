@@ -45,3 +45,49 @@ class ChannelInaccessibleError(Exception):
         self.channel = channel
         self.message = message or f"Channel inaccessible: {channel}"
         super().__init__(self.message)
+
+
+class CVFileSizeExceededError(Exception):
+    def __init__(self, max_size_mb: int = 5, **context):
+        self.max_size_mb = max_size_mb
+        self.context = context
+        self.message = f"CV file size exceeds maximum of {max_size_mb}MB"
+        super().__init__(self.message)
+
+
+class CVFormatNotSupportedError(Exception):
+    def __init__(self, format: str = "", **context):
+        self.format = format
+        self.context = context
+        self.message = f"CV file format not supported: {format}"
+        super().__init__(self.message)
+
+
+class CVTextExtractionError(Exception):
+    def __init__(self, message: str = "Failed to extract text from CV", **context):
+        self.message = message
+        self.context = context
+        super().__init__(self.message)
+
+
+class CVQuotaExceededError(Exception):
+    def __init__(self, message: str = "CV evaluation quota exceeded", **context):
+        self.message = message
+        self.context = context
+        super().__init__(self.message)
+
+
+class CVLimitExceededError(Exception):
+    def __init__(
+        self, message: str = "CV limit exceeded for your subscription tier", **context
+    ):
+        self.message = message
+        self.context = context
+        super().__init__(self.message)
+
+
+class CVDeletedError(Exception):
+    def __init__(self, message: str = "Cannot operate on deleted CV", **context):
+        self.message = message
+        self.context = context
+        super().__init__(self.message)

@@ -11,14 +11,14 @@ Incremental Delivery: Each user story independently testable
 
 ## Phase 1: Setup
 
-- [ ] T001 Create Alembic migration to add evaluation columns to user_cvs table in migrations/versions/
-- [ ] T002 Add CV evaluation model config in config/ai_models.py (gemini-2.5-pro)
+- [X] T001 Create Alembic migration to add evaluation columns to user_cvs table in migrations/versions/
+- [X] T002 Add CV evaluation model config in config/ai_models.py (gemini-2.5-pro)
 
 ## Phase 2: Foundational
 
-- [ ] T003 [P] Add skills, experience_summary, completeness_score, improvement_suggestions, evaluated_at columns to src/models/user_cv.py
-- [ ] T004 [P] Extend src/repositories/cv_repository.py with get_active_cvs, count_by_user methods
-- [ ] T004a [P] Create custom exceptions in src/services/exceptions.py (CVFileSizeExceededError, CVFormatNotSupportedError, CVTextExtractionError, CVQuotaExceededError, CVLimitExceededError) to comply with Constitution Principle IX.
+- [X] T003 [P] Add skills, experience_summary, completeness_score, improvement_suggestions, evaluated_at columns to src/models/user_cv.py
+- [X] T004 [P] Extend src/repositories/cv_repository.py with get_active_cvs, count_by_user methods
+- [X] T004a [P] Create custom exceptions in src/services/exceptions.py (CVFileSizeExceededError, CVFormatNotSupportedError, CVTextExtractionError, CVQuotaExceededError, CVLimitExceededError) to comply with Constitution Principle IX.
 
 ## Phase 3: User Story 1 - Upload CV via Telegram (P1)
 
@@ -26,13 +26,13 @@ Incremental Delivery: Each user story independently testable
 
 **Independent Test**: Send a CV file to bot, verify text extracted and stored (encrypted)
 
-- [ ] T005 [P] [US1] Create CV parser service in src/services/cv_parser.py (extract PDF/DOCX/TXT text)
-- [ ] T006 [P] [US1] Add file validation (5MB max, PDF/DOCX/TXT only) in src/services/cv_service.py
-- [ ] T007 [US1] Implement extract_text with fallback (PyPDF2 → pdfplumber) in src/services/cv_parser.py
-- [ ] T008 [US1] Create upload_cv method in src/services/cv_service.py (validation → extraction → encryption → storage)
-- [ ] T009 [US1] Create Telegram bot document handler in src/bot/handlers/cv_handlers.py (handle file uploads)
-- [ ] T010 [US1] Add error handling for extraction failures in src/services/cv_service.py
-- [ ] T011 [US1] Implement contextual error logging via Sentry/logger in src/services/cv_service.py. All CV exceptions MUST include context kwargs: user_id, cv_id, file_size, and file_format.
+- [X] T005 [P] [US1] Create CV parser service in src/services/cv_parser.py (extract PDF/DOCX/TXT text)
+- [X] T006 [P] [US1] Add file validation (5MB max, PDF/DOCX/TXT only) in src/services/cv_service.py
+- [X] T007 [US1] Implement extract_text with fallback (PyPDF2 → pdfplumber) in src/services/cv_parser.py
+- [X] T008 [US1] Create upload_cv method in src/services/cv_service.py (validation → extraction → encryption → storage)
+- [X] T009 [US1] Create Telegram bot document handler in src/bot/handlers/cv_handlers.py (handle file uploads)
+- [X] T010 [US1] Add error handling for extraction failures in src/services/cv_service.py
+- [X] T011 [US1] Implement contextual error logging via Sentry/logger in src/services/cv_service.py. All CV exceptions MUST include context kwargs: user_id, cv_id, file_size, and file_format.
 
 ## Phase 4: User Story 2 & 3 - AI Evaluation + Completeness (P1)
 
@@ -40,13 +40,13 @@ Incremental Delivery: Each user story independently testable
 
 **Independent Test**: Upload CV, verify AI returns skills/summary/score/suggestions
 
-- [ ] T012 [P] [US2] Create CV evaluator service in src/services/cv_evaluator.py (Gemini Pro evaluation)
-- [ ] T013 [P] [US3] Implement completeness scoring (contact20%, skills25%, experience30%, education15%, summary10%) in src/services/cv_evaluator.py
-- [ ] T014 [US2] Create evaluate_cv method in src/services/cv_service.py (call evaluator → save results)
-- [ ] T015 [US2] Add structured JSON response parsing in src/services/cv_evaluator.py (skills, suggestions)
-- [ ] T016 [US3] Add referral ineligibility warning (below 40%) in src/services/cv_evaluator.py
-- [ ] T017 [US2] Display evaluation results in readable format in src/bot/handlers/cv_handlers.py
-- [ ] T018 [US2] Persist evaluation to database in src/repositories/cv_repository.py
+- [X] T012 [P] [US2] Create CV evaluator service in src/services/cv_evaluator.py (Gemini Pro evaluation)
+- [X] T013 [P] [US3] Implement completeness scoring (contact20%, skills25%, experience30%, education15%, summary10%) in src/services/cv_evaluator.py
+- [X] T014 [US2] Create evaluate_cv method in src/services/cv_service.py (call evaluator → save results)
+- [X] T015 [US2] Add structured JSON response parsing in src/services/cv_evaluator.py (skills, suggestions)
+- [X] T016 [US3] Add referral ineligibility warning (below 40%) in src/services/cv_evaluator.py
+- [X] T017 [US2] Display evaluation results in readable format in src/bot/handlers/cv_handlers.py
+- [X] T018 [US2] Persist evaluation to database in src/repositories/cv_repository.py
 
 ## Phase 5: User Story 4 - Generate CV Embeddings (P2)
 
@@ -54,15 +54,15 @@ Incremental Delivery: Each user story independently testable
 
 **Independent Test**: Upload CV, verify 768-dim vector stored (or null on failure)
 
-- [ ] T019 [US4] Create cv_embedding service in src/services/cv_embedding.py (wrap AIProviderService)
-- [ ] T020 [US4] Trigger embedding generation via Celery background task (`send_task`) on successful CV upload to ensure the Telegram bot response is not blocked.
-- [ ] T021 [US4] Handle embedding failure gracefully (log error, store null) in src/services/cv_embedding.py
+- [X] T019 [US4] Create cv_embedding service in src/services/cv_embedding.py (wrap AIProviderService)
+- [X] T020 [US4] Trigger embedding generation via Celery background task (`send_task`) on successful CV upload to ensure the Telegram bot response is not blocked.
+- [X] T021 [US4] Handle embedding failure gracefully (log error, store null) in src/services/cv_embedding.py
 
 ## Phase 6: User Story 5 - Encrypted CV Storage (P1)
 
 **Already Implemented**: Fernet encryption exists in src/utils/encryption.py
 
-- [ ] T022 [US5] Verify encryption works correctly (existing integration test)
+- [X] T022 [US5] Verify encryption works correctly (existing integration test)
 
 ## Phase 7: User Story 6 - Subscription Tier CV Limits (P1)
 
@@ -70,10 +70,10 @@ Incremental Delivery: Each user story independently testable
 
 **Independent Test**: Tier user at limit sees upgrade prompt when exceeding
 
-- [ ] T023 [US6] Get user subscription tier in src/services/cv_service.py (from user/subscription)
-- [ ] T024 [US6] Check CV count before upload in src/services/cv_service.py
-- [ ] T025 [US6] Return upgrade prompt on limit exceeded in src/bot/handlers/cv_handlers.py
-- [ ] T026 [US6] Implement CV replace (mark old inactive, create new) in src/services/cv_service.py
+- [X] T023 [US6] Get user subscription tier in src/services/cv_service.py (from user/subscription)
+- [X] T024 [US6] Check CV count before upload in src/services/cv_service.py
+- [X] T025 [US6] Return upgrade prompt on limit exceeded in src/bot/handlers/cv_handlers.py
+- [X] T026 [US6] Implement CV replace (mark old inactive, create new) in src/services/cv_service.py
 
 ## Phase 8: User Story 7 - Manage Uploaded CVs (P2)
 
@@ -81,12 +81,12 @@ Incremental Delivery: Each user story independently testable
 
 **Independent Test**: Multiple CVs managed through bot commands
 
-- [ ] T027 [US7] Add list_user_cvs method in src/services/cv_service.py (return all CVs with status)
-- [ ] T028 [US7] Add activate_cv method in src/services/cv_service.py (set active, deactivate others)
-- [ ] T029 [US7] Add deactivate_cv method in src/services/cv_service.py (set is_active=false)
-- [ ] T030 [US7] Add delete_cv method in src/services/cv_service.py (soft delete)
-- [ ] T031 [US7] Create CV management bot commands in src/bot/commands/cv_commands.py (/mycvs, /activatecv, /deletecv)
-- [ ] T032 [US7] Trigger a background Celery task (`match_active_cv_to_recent_jobs`) whenever a CV's state changes to ACTIVE (either on new upload or manual activation). The task must evaluate the CV against jobs from the last 7 days.
+- [X] T027 [US7] Add list_user_cvs method in src/services/cv_service.py (return all CVs with status)
+- [X] T028 [US7] Add activate_cv method in src/services/cv_service.py (set active, deactivate others)
+- [X] T029 [US7] Add deactivate_cv method in src/services/cv_service.py (set is_active=false)
+- [X] T030 [US7] Add delete_cv method in src/services/cv_service.py (soft delete)
+- [X] T031 [US7] Create CV management bot commands in src/bot/commands/cv_commands.py (/mycvs, /activatecv, /deletecv)
+- [X] T032 [US7] Trigger a background Celery task (`match_active_cv_to_recent_jobs`) whenever a CV's state changes to ACTIVE (either on new upload or manual activation). The task must evaluate the CV against jobs from the last 7 days.
 
 ## Phase 9: User Story 8 - CV Evaluation Quota Tracking (P2)
 
@@ -94,10 +94,10 @@ Incremental Delivery: Each user story independently testable
 
 **Independent Test**: User at quota limit sees upgrade prompt
 
-- [ ] T033 [US8] Create Redis-based quota tracker in src/services/cv_quota_service.py (monthly counters)
-- [ ] T034 [US8] Check quota before evaluation in src/services/cv_service.py
-- [ ] T035 [US8] Increment quota on each evaluation in src/services/cv_quota_service.py
-- [ ] T036 [US8] Show upgrade prompt on quota exceeded in src/bot/handlers/cv_handlers.py
+- [X] T033 [US8] Create Redis-based quota tracker in src/services/cv_quota_service.py (monthly counters)
+- [X] T034 [US8] Check quota before evaluation in src/services/cv_service.py
+- [X] T035 [US8] Increment quota on each evaluation in src/services/cv_quota_service.py
+- [X] T036 [US8] Show upgrade prompt on quota exceeded in src/bot/handlers/cv_handlers.py
 
 ## Test Quality Standards
 
@@ -112,18 +112,18 @@ Incremental Delivery: Each user story independently testable
 
 **Independent Test**: Admin can trigger re-encryption via CLI command
 
-- [ ] T041a [Admin] Create CV re-encryption logic in src/services/admin_service.py. Must acquire Redis lock 'cv:reencryption:lock' (TTL 1 hour), decrypt/re-encrypt user_cvs records in batches of 100, and log progress.
-- [ ] T041b [Admin] Add Telegram CLI command '/admin reencrypt-cvs --old-key-file=...' in src/bot/commands/admin_commands.py to trigger the rotation process.
+- [X] T041a [Admin] Create CV re-encryption logic in src/services/admin_service.py. Must acquire Redis lock 'cv:reencryption:lock' (TTL 1 hour), decrypt/re-encrypt user_cvs records in batches of 100, and log progress.
+- [X] T041b [Admin] Add Telegram CLI command '/admin reencrypt-cvs --old-key-file=...' in src/bot/commands/admin_commands.py to trigger the rotation process.
 
 ## Phase 11: Polish & Cross-Cutting Concerns
 
-- [ ] T035 [P] Add unit tests for cv_parser in tests/unit/test_cv_parser.py
-- [ ] T036 [P] Add unit tests for cv_evaluator in tests/unit/test_cv_evaluator.py
-- [ ] T037 [P] Add unit tests for cv_service in tests/unit/test_cv_service.py
-- [ ] T038 Add integration tests for CV repository in tests/integration/test_cv_repository.py
-- [ ] T039 Verify all tests pass (pytest)
-- [ ] T040 Run lint and typecheck (ruff check . && ruff format .)
-- [ ] T041 Verify integration: newly activated CVs successfully trigger the matching engine for the last 7 days of jobs.
+- [X] T035 [P] Add unit tests for cv_parser in tests/unit/test_cv_parser.py
+- [X] T036 [P] Add unit tests for cv_evaluator in tests/unit/test_cv_evaluator.py
+- [X] T037 [P] Add unit tests for cv_service in tests/unit/test_cv_service.py
+- [X] T038 Add integration tests for CV repository in tests/integration/test_cv_repository.py
+- [X] T039 Verify all tests pass (pytest)
+- [X] T040 Run lint and typecheck (ruff check . && ruff format .)
+- [X] T041 Verify integration: newly activated CVs successfully trigger the matching engine for the last 7 days of jobs.
 ## Dependencies
 
 ```

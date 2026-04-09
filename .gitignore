@@ -24,3 +24,4 @@ Thumbs.db
 .vscode/
 *.egg
 opencode.json
+count_tokens.py
