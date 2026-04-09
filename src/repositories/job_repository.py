@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 from typing import Optional
 from sqlalchemy import select, literal
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -29,7 +30,7 @@ class JobRepository(AbstractRepository[Job]):
         return result.scalar_one_or_none()
 
     async def get_active_jobs(self, skip: int = 0, limit: int = 100) -> list[Job]:
-        stmt = select(Job).where(not Job.is_archived).offset(skip).limit(limit)
+        stmt = select(Job).where(~Job.is_archived).offset(skip).limit(limit)
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
 
@@ -78,7 +79,7 @@ class JobRepository(AbstractRepository[Job]):
         stmt = (
             select(Job, similarity.label("similarity"))
             .where(
-                not Job.is_archived,
+                ~Job.is_archived,
                 Job.embedding_vector.isnot(None),
                 similarity >= threshold,
             )
@@ -90,6 +91,19 @@ class JobRepository(AbstractRepository[Job]):
 
     async def archive_job(self, job_id: uuid.UUID) -> Optional[Job]:
         return await self.update(job_id, is_archived=True)
+
+    async def get_jobs_since(self, since: datetime, limit: int = 500) -> list[Job]:
+        stmt = (
+            select(Job)
+            .where(
+                Job.created_at >= since,
+                ~Job.is_archived,
+                Job.embedding_vector.isnot(None),
+            )
+            .limit(limit)
+        )
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
 
     async def update_embedding(
         self,

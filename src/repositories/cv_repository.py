@@ -1,6 +1,9 @@
 import uuid
+from datetime import datetime, timezone
+from decimal import Decimal
 from typing import Optional
-from sqlalchemy import select, update
+
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.models.user_cv import UserCV
 from src.repositories.base import AbstractRepository
@@ -12,17 +15,60 @@ class CVRepository(AbstractRepository[UserCV]):
         super().__init__(session, UserCV)
 
     async def get_by_user_id(self, user_id: uuid.UUID) -> list[UserCV]:
-        stmt = select(UserCV).where(UserCV.user_id == user_id)
+        stmt = (
+            select(UserCV)
+            .where(UserCV.user_id == user_id, UserCV.deleted_at.is_(None))
+            .order_by(UserCV.created_at.desc())
+        )
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
 
     async def get_active_cv(self, user_id: uuid.UUID) -> Optional[UserCV]:
-        stmt = select(UserCV).where(
-            UserCV.user_id == user_id,
-            UserCV.is_active,
+        stmt = (
+            select(UserCV)
+            .where(
+                UserCV.user_id == user_id,
+                UserCV.is_active,
+                UserCV.deleted_at.is_(None),
+            )
+            .order_by(UserCV.created_at.desc())
         )
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none()
+
+    async def get_active_cvs(self, user_id: uuid.UUID) -> list[UserCV]:
+        stmt = select(UserCV).where(
+            UserCV.user_id == user_id,
+            UserCV.is_active,
+            UserCV.deleted_at.is_(None),
+        )
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def count_by_user(self, user_id: uuid.UUID) -> int:
+        stmt = (
+            select(func.count())
+            .select_from(UserCV)
+            .where(
+                UserCV.user_id == user_id,
+                UserCV.deleted_at.is_(None),
+            )
+        )
+        result = await self._session.execute(stmt)
+        return result.scalar_one()
+
+    async def count_active_by_user(self, user_id: uuid.UUID) -> int:
+        stmt = (
+            select(func.count())
+            .select_from(UserCV)
+            .where(
+                UserCV.user_id == user_id,
+                UserCV.is_active,
+                UserCV.deleted_at.is_(None),
+            )
+        )
+        result = await self._session.execute(stmt)
+        return result.scalar_one()
 
     async def create_cv(
         self,
@@ -47,22 +93,59 @@ class CVRepository(AbstractRepository[UserCV]):
     async def set_active_cv(
         self, cv_id: uuid.UUID, user_id: uuid.UUID
     ) -> Optional[UserCV]:
-        # Validate that cv_id belongs to user_id BEFORE any state mutation
-        stmt = select(UserCV).where(UserCV.id == cv_id, UserCV.user_id == user_id)
+        stmt = select(UserCV).where(
+            UserCV.id == cv_id,
+            UserCV.user_id == user_id,
+            UserCV.deleted_at.is_(None),
+        )
         result = await self._session.execute(stmt)
         cv = result.scalar_one_or_none()
 
         if not cv:
-            # CV doesn't belong to user or doesn't exist
             return None
 
-        # Deactivate all CVs for this user
         await self._session.execute(
             update(UserCV).where(UserCV.user_id == user_id).values(is_active=False)
         )
 
-        # Activate the specific CV
         cv.is_active = True
+        await self._session.flush()
+        return cv
+
+    async def deactivate_cv(
+        self, cv_id: uuid.UUID, user_id: uuid.UUID
+    ) -> Optional[UserCV]:
+        stmt = select(UserCV).where(
+            UserCV.id == cv_id,
+            UserCV.user_id == user_id,
+            UserCV.deleted_at.is_(None),
+        )
+        result = await self._session.execute(stmt)
+        cv = result.scalar_one_or_none()
+
+        if not cv:
+            return None
+
+        cv.is_active = False
+        await self._session.flush()
+        return cv
+
+    async def soft_delete_cv(
+        self, cv_id: uuid.UUID, user_id: uuid.UUID
+    ) -> Optional[UserCV]:
+        stmt = select(UserCV).where(
+            UserCV.id == cv_id,
+            UserCV.user_id == user_id,
+            UserCV.deleted_at.is_(None),
+        )
+        result = await self._session.execute(stmt)
+        cv = result.scalar_one_or_none()
+
+        if not cv:
+            return None
+
+        cv.is_active = False
+        cv.deleted_at = datetime.now(timezone.utc)
         await self._session.flush()
         return cv
 
@@ -72,3 +155,30 @@ class CVRepository(AbstractRepository[UserCV]):
         embedding_vector: list[float],
     ) -> Optional[UserCV]:
         return await self.update(cv_id, embedding_vector=embedding_vector)
+
+    async def update_evaluation(
+        self,
+        cv_id: uuid.UUID,
+        skills: list[str],
+        experience_summary: str,
+        completeness_score: Decimal,
+        improvement_suggestions: list[str],
+    ) -> Optional[UserCV]:
+        return await self.update(
+            cv_id,
+            skills=skills,
+            experience_summary=experience_summary,
+            completeness_score=completeness_score,
+            improvement_suggestions=improvement_suggestions,
+            evaluated_at=datetime.now(timezone.utc),
+        )
+
+    async def get_all_for_reencryption(
+        self, batch_size: int = 100, last_id: uuid.UUID | None = None
+    ) -> list[UserCV]:
+        stmt = select(UserCV).where(UserCV.deleted_at.is_(None))
+        if last_id is not None:
+            stmt = stmt.where(UserCV.id > last_id)
+        stmt = stmt.order_by(UserCV.id.asc()).limit(batch_size)
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
