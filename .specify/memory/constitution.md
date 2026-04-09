@@ -18,7 +18,10 @@ Fernet encryption REQUIRED for all CV data at rest. No secrets in code - environ
 ALL AI model names MUST come from config/ai_models.py only. ALL settings MUST come from config/settings.py only. No hardcoded values in business logic. Configuration changes require no code modifications.
 
 ### VI. Language Policy
-Code, comments, and docstrings: English only. Database column names: English only. Variable and function names: English only. All user-facing text: English only.
+Code, comments, and docstrings: English only. 
+Database column names: English only. 
+Variable and function names: English only. 
+All user-facing text: Arabic + English (bilingual support).
 
 ### VII. Database Changes
 All schema changes via Alembic migrations only. Never modify database manually. Migration files MUST have descriptive names. Migration downgrades MUST be maintained.
