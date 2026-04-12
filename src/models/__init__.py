@@ -2,6 +2,7 @@ from src.models.archived_job import ArchivedJob
 from src.models.base import UUIDPrimaryKeyMixin, TimestampMixin
 from src.models.cover_letter_log import CoverLetterLog
 from src.models.job import Job
+from src.models.job_category import JobCategory
 from src.models.job_match import JobMatch
 from src.models.job_report import JobReport
 from src.models.monitored_channel import MonitoredChannel
@@ -12,6 +13,7 @@ from src.models.telegram_session import TelegramSession
 from src.models.user import User
 from src.models.user_cv import UserCV
 from src.models.user_interaction import UserInteraction
+from src.models.user_preferences import UserPreferences
 
 __all__ = [
     "ArchivedJob",
@@ -19,6 +21,7 @@ __all__ = [
     "TimestampMixin",
     "CoverLetterLog",
     "Job",
+    "JobCategory",
     "JobMatch",
     "JobReport",
     "MonitoredChannel",
@@ -29,4 +32,5 @@ __all__ = [
     "User",
     "UserCV",
     "UserInteraction",
+    "UserPreferences",
 ]

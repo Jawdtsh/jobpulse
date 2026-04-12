@@ -100,3 +100,37 @@ class CVUploadInProgressError(Exception):
         self.message = message
         self.context = context
         super().__init__(self.message)
+
+
+class JobNotFoundError(Exception):
+    def __init__(self, job_id: str = "", **context):
+        self.job_id = job_id
+        self.context = context
+        self.message = f"Job not found: {job_id}"
+        super().__init__(self.message)
+
+
+class EmbeddingNotAvailableError(Exception):
+    def __init__(self, entity_type: str = "", entity_id: str = "", **context):
+        self.entity_type = entity_type
+        self.entity_id = entity_id
+        self.context = context
+        self.message = f"Embedding not available for {entity_type}: {entity_id}"
+        super().__init__(self.message)
+
+
+class ProTierRequiredError(Exception):
+    def __init__(
+        self, message: str = "This feature requires Pro subscription", **context
+    ):
+        self.message = message
+        self.context = context
+        super().__init__(self.message)
+
+
+class ThresholdOutOfRangeError(Exception):
+    def __init__(self, value: float = 0.0, **context):
+        self.value = value
+        self.context = context
+        self.message = f"Threshold {value} is outside valid range 0.60-1.00"
+        super().__init__(self.message)

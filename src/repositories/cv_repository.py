@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from typing import Optional
 
-from sqlalchemy import func, select, update
+from sqlalchemy import func, literal, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.models.user_cv import UserCV
 from src.repositories.base import AbstractRepository
@@ -172,6 +172,28 @@ class CVRepository(AbstractRepository[UserCV]):
             improvement_suggestions=improvement_suggestions,
             evaluated_at=datetime.now(timezone.utc),
         )
+
+    async def find_similar_cvs(
+        self,
+        job_embedding: list[float],
+        threshold: float = 0.80,
+        limit: int = 10000,
+    ) -> list[tuple[UserCV, float]]:
+        distance = UserCV.embedding_vector.cosine_distance(job_embedding)
+        similarity = literal(1.0) - distance
+        stmt = (
+            select(UserCV, similarity.label("similarity"))
+            .where(
+                UserCV.is_active.is_(True),
+                UserCV.deleted_at.is_(None),
+                UserCV.embedding_vector.isnot(None),
+                similarity >= threshold,
+            )
+            .order_by(distance)
+            .limit(limit)
+        )
+        result = await self._session.execute(stmt)
+        return [(row[0], row[1]) for row in result.all()]
 
     async def get_all_for_reencryption(
         self, batch_size: int = 100, last_id: uuid.UUID | None = None
