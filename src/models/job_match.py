@@ -29,10 +29,10 @@ class JobMatch(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
     )
-    cv_id: Mapped[uuid.UUID | None] = mapped_column(
+    cv_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("user_cvs.id", ondelete="CASCADE"),
-        nullable=True,
+        nullable=False,
     )
     similarity_score: Mapped[float] = mapped_column(Float, nullable=False)
     is_notified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
@@ -42,4 +42,4 @@ class JobMatch(Base, UUIDPrimaryKeyMixin, TimestampMixin):
 
     job: Mapped["Job"] = relationship("Job", back_populates="matches")
     user: Mapped["User"] = relationship("User", back_populates="job_matches")
-    cv: Mapped["UserCV | None"] = relationship("UserCV")
+    cv: Mapped["UserCV"] = relationship("UserCV")

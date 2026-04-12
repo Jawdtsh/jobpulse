@@ -105,7 +105,7 @@ As a Pro user who just uploaded a new CV, I want to search historical jobs from 
 
 5. **Given** historical matching completes, **When** notifications are ready, **Then** they are sent immediately (no delay queue)
 
-6. **Given** a Free or Basic user triggers /search_history, **When** command is executed, **Then** system rejects with "This feature is Pro-only. Upgrade to access historical search."
+6. **Given** a Free or Basic user triggers /search_history, **When** command is executed, **Then** system rejects with "This feature is Pro-only. Upgrade to access historical search." and shows an upgrade button — before any days selection UI
 
 ---
 
@@ -158,13 +158,13 @@ As the system, I need to track match quality metrics to identify issues and impr
 ### Functional Requirements
 
 - **FR-001**: System MUST match new jobs against ALL active CVs immediately after job storage
-- **FR-002**: System MUST calculate similarity using cosine similarity between CV and job embeddings
+- **FR-002**: System MUST calculate similarity using pgvector native cosine_distance function at the database level (NOT Python-level computation). Matching MUST use a single SQL query with `1 - (embedding_vector <=> job_embedding::vector)` for performance per SC-001
 - **FR-003**: System MUST skip CVs or jobs where embedding vector is null
 - **FR-004**: System MUST apply similarity threshold with priority: user preference > job category default > system default (0.80)
-- **FR-005**: System MUST create job_matches record for each match containing similarity_score, user_id, job_id, and **cv_id** (NEW - added for multi-CV tracking)
-- **FR-006**: System MUST enforce uniqueness on (job_id, user_id, cv_id) to prevent duplicate matches
+- **FR-005**: System MUST create job_matches record for each match containing similarity_score, user_id, job_id, and cv_id (NOT NULL — every match must reference a specific CV)
+- **FR-006**: System MUST enforce uniqueness on (job_id, user_id, cv_id) to prevent duplicate matches — silently skip on unique violation (pgcode 23505), propagate all other IntegrityErrors
 
-- **FR-007**: System MUST calculate notification time from job's publication timestamp (job.created_at), not ingestion time
+- **FR-007**: System MUST calculate notification time from job's telegram_published_at timestamp if available, otherwise fall back to job.created_at. This ensures notification delay starts from the actual Telegram publication time, not ingestion time
 - **FR-008**: System MUST queue notifications with tier-specific delays: Free=60min, Basic=10min, Pro=instant
 - **FR-009**: System MUST use Redis Sorted Set for notification queue with notification_time as score
 - **FR-010**: System MUST batch jobs published within 3-minute window into single notification
@@ -192,12 +192,15 @@ As the system, I need to track match quality metrics to identify issues and impr
 - **FR-028**: System MUST validate user threshold is between 0.60 and 1.00
 - **FR-029**: System MUST enforce constraint on user_preferences table
 
-- **FR-030**: System MUST cancel pending notifications when CV is deactivated
-- **FR-031**: System MUST cancel pending notifications when CV is deleted
+- **FR-030**: System MUST cancel pending notifications when CV is deactivated (remove from Redis queue only — match records are preserved for history)
+- **FR-031**: System MUST cancel pending notifications when CV is deleted (remove from Redis queue only — match records are preserved for history)
 - **FR-032**: System MUST remove cancelled notifications from Redis queue
-- **FR-033**: System MUST update notification time in Redis queue when user upgrades subscription tier (recalculate delay and update score)
+- **FR-033**: System MUST update notification time in Redis queue when user upgrades subscription tier (recalculate delay using job_published_at from queue payload and update score)
 - **FR-034**: System MUST restrict /search_history command to Pro tier users only
-- **FR-035**: System MUST fallback to immediate notification delivery when Redis queue is unavailable (log error to Sentry)
+- **FR-035**: System MUST return early from process_due_notifications if Redis queue fetch fails (log error with traceback for Sentry, let next Celery beat tick retry)
+- **FR-036**: System MUST use a single bulk query (get_existing_match_keys) to check for existing matches in historical matching, avoiding N+1 query patterns
+- **FR-037**: cv_id in job_matches MUST be NOT NULL — every match references a specific CV
+- **FR-038**: Job categories MUST have a CHECK constraint ensuring similarity_threshold is between 0.00 and 1.00
 ### Key Entities *(include if feature involves data)*
 
 - **JobMatch**: Represents a match between a user's CV and a job. Contains: job_id, user_id, cv_id, similarity_score, is_notified, notified_at, is_clicked, clicked_at

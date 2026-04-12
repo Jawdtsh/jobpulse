@@ -12,6 +12,36 @@ router = Router()
 @router.message(Command("search_history"))
 async def cmd_search_history(message: Message):
     args = message.text.split()[1:] if message.text else []
+
+    from src.database import get_async_session
+    from src.repositories.user_repository import UserRepository
+
+    user = None
+    async for session in get_async_session():
+        user_repo = UserRepository(session)
+        user = await user_repo.get_by_telegram_id(message.from_user.id)
+        break
+
+    if not user:
+        await message.answer("You are not registered. Please /start first.")
+        return
+
+    if user.subscription_tier.lower() != "pro":
+        kb = InlineKeyboardMarkup(
+            inline_keyboard=[
+                [
+                    InlineKeyboardButton(
+                        text="Upgrade to Pro", callback_data="upgrade:pro"
+                    )
+                ]
+            ]
+        )
+        await message.answer(
+            "This feature is Pro-only. Upgrade to access historical search.",
+            reply_markup=kb,
+        )
+        return
+
     if not args:
         await message.answer("Usage: /search_history <days 1-7>")
         return
@@ -50,13 +80,31 @@ async def handle_history_callback(callback: CallbackQuery):
     await callback.answer("Searching historical jobs...")
     await callback.message.edit_text(f"Searching last {days} days...")
 
-    from workers.tasks.matching_tasks import match_historical
+    from src.database import get_async_session
+    from src.repositories.user_repository import UserRepository
+    from src.services.matching_service import MatchingService
 
-    user_id = str(callback.from_user.id)
-    match_historical.delay(user_id, days, resend)
+    results = []
+    async for session in get_async_session():
+        user_repo = UserRepository(session)
+        user = await user_repo.get_by_telegram_id(callback.from_user.id)
+        if not user:
+            await callback.message.edit_text(
+                "You are not registered. Please /start first."
+            )
+            return
+
+        svc = MatchingService(session)
+        try:
+            results = await svc.match_historical(user.id, days, resend)
+            await session.commit()
+        except Exception as e:
+            await session.rollback()
+            await callback.message.edit_text(f"Error: {e}")
+            return
 
     await callback.message.edit_text(
-        f"Historical search started for {days} days. You'll be notified of matches."
+        f"Historical search complete. Found {len(results)} matches."
     )
 
 

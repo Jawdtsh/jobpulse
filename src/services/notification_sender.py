@@ -1,14 +1,15 @@
 import logging
 
+from aiogram import Bot
+
 logger = logging.getLogger(__name__)
 
-_bot_instance = None
+_bot_instance: Bot | None = None
 
 
-def _get_bot():
+def _get_bot() -> Bot:
     global _bot_instance
     if _bot_instance is None:
-        from aiogram import Bot
         from config.settings import get_settings
 
         settings = get_settings()
@@ -49,6 +50,6 @@ async def send_telegram_message(
             reply_markup=reply_markup,
             parse_mode="HTML",
         )
-    except Exception as e:
-        logger.error("Failed to send Telegram message to %s: %s", chat_id, e)
+    except Exception:
+        logger.exception("Failed to send Telegram message to %s", chat_id)
         raise

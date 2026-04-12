@@ -41,7 +41,8 @@ class NotificationService:
 
         tier = getattr(user, "subscription_tier", TIER_FREE)
         delay = self._get_tier_delay(tier)
-        notification_time = job.created_at + timedelta(seconds=delay)
+        published_at = getattr(job, "telegram_published_at", None) or job.created_at
+        notification_time = published_at + timedelta(seconds=delay)
 
         await self._queue.enqueue(
             match_id=str(match.id),
@@ -50,6 +51,7 @@ class NotificationService:
             cv_id=str(match.cv_id) if match.cv_id else None,
             tier=tier,
             notification_time=notification_time,
+            job_published_at=published_at,
         )
         logger.info(
             "Queued notification match=%s tier=%s at=%s",
@@ -80,35 +82,37 @@ class NotificationService:
         )
 
     async def process_due_notifications(self) -> int:
-        due_items = await self._queue.fetch_due()
+        try:
+            due_items = await self._queue.fetch_due()
+        except Exception:
+            logger.error("Failed to fetch due notifications from queue", exc_info=True)
+            return 0
+
         if not due_items:
             return 0
 
         sent = 0
-        user_matches: dict[str, list[dict]] = {}
+        groups: dict[tuple[str, str], list[dict]] = {}
         for item in due_items:
-            uid = item["user_id"]
-            user_matches.setdefault(uid, []).append(item)
+            key = (item["user_id"], item["job_id"])
+            groups.setdefault(key, []).append(item)
 
-        for uid, items in user_matches.items():
-            for item in items:
-                try:
-                    match = await self._match_repo.get(uuid.UUID(item["match_id"]))
-                    if match:
-                        await self._send_telegram_notification(match, item)
+        for (uid, job_id), items in groups.items():
+            try:
+                match = await self._match_repo.get(uuid.UUID(items[0]["match_id"]))
+                if match:
+                    await self._send_telegram_notification(match, items)
+                    for item in items:
                         await self._queue.remove(item)
-                        sent += 1
-                except Exception as e:
-                    logger.error("Failed to send notification: %s", e)
-                    try:
-                        await self._queue.remove(item)
-                    except Exception:
-                        pass
+                    sent += 1
+            except Exception:
+                logger.exception("Failed to send notification")
+                continue
 
         return sent
 
     async def _send_telegram_notification(
-        self, match: JobMatch, queue_data: dict
+        self, match: JobMatch, queue_data: list[dict]
     ) -> None:
         job = await self._job_repo.get(match.job_id)
         if not job:
@@ -124,9 +128,13 @@ class NotificationService:
 
         score_text = f"{match.similarity_score:.0%}"
 
-        if len(cv_matches_for_job) > 1:
+        if len(cv_matches_for_job) > 1 or len(queue_data) > 1:
             parts = []
+            seen_scores: set[float] = set()
             for m in cv_matches_for_job:
+                if m.similarity_score in seen_scores:
+                    continue
+                seen_scores.add(m.similarity_score)
                 cv_name = "CV"
                 if m.cv_id:
                     cv = await self._session.get(
@@ -162,11 +170,7 @@ class NotificationService:
         logger.info("Notification sent match=%s user=%s", match.id, match.user_id)
 
     async def cancel_notifications_for_cv(self, cv_id: uuid.UUID) -> int:
-        pending = await self._match_repo.get_pending_by_cv(cv_id)
         removed = await self._queue.remove_by_cv(str(cv_id))
-        for match in pending:
-            await self._session.delete(match)
-        await self._session.flush()
         return removed
 
     async def handle_tier_upgrade(self, user_id: uuid.UUID, new_tier: str) -> int:

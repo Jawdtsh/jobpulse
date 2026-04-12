@@ -28,17 +28,28 @@ class NotificationQueue:
         tier: str,
         notification_time: datetime,
         batch_key: str | None = None,
+        job_published_at: datetime | None = None,
     ) -> None:
-        data = json.dumps(
-            {
-                "match_id": match_id,
-                "user_id": user_id,
-                "job_id": job_id,
-                "cv_id": cv_id,
-                "tier": tier,
-                "batch_key": batch_key or "",
-            }
+        ts_source = job_published_at or notification_time
+        floored = ts_source.replace(
+            minute=(ts_source.minute // 3) * 3,
+            second=0,
+            microsecond=0,
         )
+        batch_key = floored.isoformat()
+
+        payload = {
+            "match_id": match_id,
+            "user_id": user_id,
+            "job_id": job_id,
+            "cv_id": cv_id,
+            "tier": tier,
+            "batch_key": batch_key,
+            "job_published_at": job_published_at.timestamp()
+            if job_published_at
+            else notification_time.timestamp(),
+        }
+        data = json.dumps(payload)
         score = notification_time.timestamp()
         await self._redis.zadd(NOTIFICATION_QUEUE_KEY, {data: score})
 
@@ -62,23 +73,30 @@ class NotificationQueue:
                 removed += 1
         return removed
 
-    async def update_score_by_user(
-        self, user_id: str, new_tier: str, job_created_at: datetime | None = None
-    ) -> int:
+    async def update_score_by_user(self, user_id: str, new_tier: str) -> int:
         all_items = await self._redis.zrange(NOTIFICATION_QUEUE_KEY, 0, -1)
         updated = 0
         for item in all_items:
             data = json.loads(item)
-            if data.get("user_id") == user_id:
-                delay = self._get_tier_delay(new_tier)
-                now = datetime.now(timezone.utc)
-                new_score = (job_created_at or now).timestamp() + delay
-                await self._redis.zrem(NOTIFICATION_QUEUE_KEY, item)
-                data["tier"] = new_tier
-                await self._redis.zadd(
-                    NOTIFICATION_QUEUE_KEY, {json.dumps(data): new_score}
-                )
-                updated += 1
+            if data.get("user_id") != user_id:
+                continue
+            delay = self._get_tier_delay(new_tier)
+            job_published_ts = data.get("job_published_at")
+            if job_published_ts is not None:
+                new_score = job_published_ts + delay
+            else:
+                current_score = await self._redis.zscore(NOTIFICATION_QUEUE_KEY, item)
+                if current_score is not None:
+                    old_delay = self._get_tier_delay(data.get("tier", "free"))
+                    new_score = current_score - old_delay + delay
+                else:
+                    new_score = datetime.now(timezone.utc).timestamp() + delay
+            await self._redis.zrem(NOTIFICATION_QUEUE_KEY, item)
+            data["tier"] = new_tier
+            await self._redis.zadd(
+                NOTIFICATION_QUEUE_KEY, {json.dumps(data): new_score}
+            )
+            updated += 1
         return updated
 
     @staticmethod

@@ -12,82 +12,106 @@ def mock_session():
 
 
 @pytest.fixture
-def service(mock_session):
-    return MetricsService(mock_session)
+def mock_match_repo():
+    repo = AsyncMock()
+    repo.get_matches_by_user = AsyncMock(return_value=[])
+    return repo
+
+
+@pytest.fixture
+def service(mock_session, mock_match_repo):
+    with patch(
+        "src.services.metrics_service.MatchRepository",
+        return_value=mock_match_repo,
+    ):
+        svc = MetricsService(mock_session)
+        svc._match_repo = mock_match_repo
+        return svc
 
 
 class TestMetricsService:
     @pytest.mark.asyncio
-    async def test_calculate_ctr_zero_matches(self, service, mock_session):
-        mock_result = MagicMock()
-        mock_result.one.return_value = MagicMock(total_notified=0, total_clicked=0)
-        mock_session.execute.return_value = mock_result
+    async def test_calculate_metrics_returns_correct_structure(
+        self, service, mock_match_repo
+    ):
+        match = MagicMock()
+        match.id = uuid.uuid4()
+        match.similarity_score = 0.85
+        match.is_notified = True
+        match.is_clicked = True
+        mock_match_repo.get_matches_by_user = AsyncMock(return_value=[match])
 
-        ctr = await service.calculate_ctr()
-        assert ctr["total_notified"] == 0
-        assert ctr["total_clicked"] == 0
-        assert ctr["ctr"] == 0.0
+        result = await service.calculate(user_id=uuid.uuid4())
 
-    @pytest.mark.asyncio
-    async def test_calculate_ctr_with_clicks(self, service, mock_session):
-        mock_result = MagicMock()
-        mock_result.one.return_value = MagicMock(total_notified=100, total_clicked=25)
-        mock_session.execute.return_value = mock_result
-
-        ctr = await service.calculate_ctr()
-        assert ctr["total_notified"] == 100
-        assert ctr["total_clicked"] == 25
-        assert ctr["ctr"] == 0.25
+        assert "score_buckets" in result
+        assert isinstance(result["score_buckets"], dict)
+        assert "ctr_data" in result
+        assert isinstance(result["ctr_data"], dict)
 
     @pytest.mark.asyncio
-    async def test_get_score_distribution_empty(self, service, mock_session):
-        mock_result = MagicMock()
-        mock_result.all.return_value = []
-        mock_session.execute.return_value = mock_result
+    async def test_score_buckets_include_low_range(self, service, mock_match_repo):
+        user_id = uuid.uuid4()
+        matches = [
+            MagicMock(
+                id=uuid.uuid4(),
+                similarity_score=0.50,
+                is_notified=True,
+                is_clicked=False,
+            ),
+            MagicMock(
+                id=uuid.uuid4(),
+                similarity_score=0.70,
+                is_notified=True,
+                is_clicked=True,
+            ),
+            MagicMock(
+                id=uuid.uuid4(),
+                similarity_score=0.90,
+                is_notified=True,
+                is_clicked=True,
+            ),
+        ]
+        mock_match_repo.get_matches_by_user = AsyncMock(return_value=matches)
 
-        dist = await service.get_score_distribution()
-        assert dist["count"] == 0
+        result = await service.calculate(user_id=user_id)
 
-    @pytest.mark.asyncio
-    async def test_get_score_distribution_with_scores(self, service, mock_session):
-        mock_result = MagicMock()
-        mock_result.all.return_value = [(0.65,), (0.75,), (0.85,), (0.95,)]
-        mock_session.execute.return_value = mock_result
-
-        dist = await service.get_score_distribution()
-        assert dist["count"] == 4
-        assert dist["distribution"]["0.60-0.70"] == 1
-        assert dist["distribution"]["0.70-0.80"] == 1
-        assert dist["distribution"]["0.80-0.90"] == 1
-        assert dist["distribution"]["0.90-1.00"] == 1
-
-    @pytest.mark.asyncio
-    async def test_check_low_performing_below_threshold(self, service, mock_session):
-        mock_result = MagicMock()
-        mock_result.one.return_value = MagicMock(total_notified=100, total_clicked=2)
-        mock_session.execute.return_value = mock_result
-
-        warnings = await service.check_low_performing()
-        assert len(warnings) > 0
-
-    @pytest.mark.asyncio
-    async def test_check_low_performing_above_threshold(self, service, mock_session):
-        mock_result = MagicMock()
-        mock_result.one.return_value = MagicMock(total_notified=100, total_clicked=50)
-        mock_session.execute.return_value = mock_result
-
-        warnings = await service.check_low_performing()
-        assert len(warnings) == 0
+        bucket_keys = list(result["score_buckets"].keys())
+        low_bucket_found = any("0.00" in key or "0.60" in key for key in bucket_keys)
+        assert low_bucket_found, f"Expected low bucket, got: {bucket_keys}"
 
     @pytest.mark.asyncio
-    async def test_generate_report(self, service, mock_session):
-        mock_result = MagicMock()
-        mock_result.one.return_value = MagicMock(total_notified=50, total_clicked=10)
-        mock_result.all.return_value = [(0.85,)]
-        mock_session.execute.return_value = mock_result
+    async def test_ctr_per_threshold_not_system_wide(self, service, mock_match_repo):
+        user_id = uuid.uuid4()
+        matches = [
+            MagicMock(
+                id=uuid.uuid4(),
+                similarity_score=0.65,
+                is_notified=True,
+                is_clicked=False,
+            ),
+            MagicMock(
+                id=uuid.uuid4(),
+                similarity_score=0.65,
+                is_notified=True,
+                is_clicked=False,
+            ),
+            MagicMock(
+                id=uuid.uuid4(),
+                similarity_score=0.85,
+                is_notified=True,
+                is_clicked=True,
+            ),
+            MagicMock(
+                id=uuid.uuid4(),
+                similarity_score=0.85,
+                is_notified=True,
+                is_clicked=True,
+            ),
+        ]
+        mock_match_repo.get_matches_by_user = AsyncMock(return_value=matches)
 
-        report = await service.generate_report()
-        assert "ctr" in report
-        assert "score_distribution" in report
-        assert "warnings" in report
-        assert "generated_at" in report
+        result = await service.calculate(user_id=user_id)
+
+        assert len(result["ctr_data"]) > 1 or any(
+            "0.60" in key or "0.80" in key for key in result["ctr_data"].keys()
+        ), "CTR should be per bucket, not system-wide"

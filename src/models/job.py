@@ -1,6 +1,7 @@
 import uuid
+from datetime import datetime
 from typing import TYPE_CHECKING, Any
-from sqlalchemy import BigInteger, Boolean, ForeignKey, Integer, String, Text
+from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from pgvector.sqlalchemy import Vector
@@ -42,6 +43,9 @@ class Job(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         String(64), unique=True, nullable=True
     )
     is_archived: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    telegram_published_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     source_channel: Mapped["MonitoredChannel | None"] = relationship(
         "MonitoredChannel",

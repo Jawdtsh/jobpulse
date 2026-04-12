@@ -111,6 +111,67 @@ Final integration and cleanup.
 - [x] T033 Run lint and typecheck per AGENTS.md
 - [x] T034 Verify test coverage meets 80% threshold using pytest --cov
 - [x] T035 Implement tier upgrade handler in src/services/notification_service.py (recalculate Redis queue score on subscription change)
+
+### Phase 10: Performance Fix — pgvector Native Cosine Similarity
+
+Fix catastrophic performance violation: replace Python for-loop cosine similarity with native pgvector SQL query.
+
+- [x] T036 Add find_similar_cvs method to CVRepository in src/repositories/cv_repository.py using pgvector cosine_distance in a single SQL query
+- [x] T037 Refactor MatchingService.match_new_job to use find_similar_cvs with system default threshold, then filter client-side by per-user effective thresholds via ThresholdService
+- [x] T038 Remove _cosine_similarity static method and _get_all_active_cvs from MatchingService
+- [x] T039 Refactor MatchingService.match_historical to use find_similar_cvs instead of Python cosine loop
+- [x] T040 Update unit tests in tests/unit/test_matching_service.py: remove TestCosineSimilarity, add pgvector query test with per-user threshold filtering
+- [x] T041 Update spec.md FR-002 to mandate pgvector native cosine_distance
+
+### Phase 11: Performance Fix — Bulk Existing Match Lookup
+
+Eliminate N+1 query in historical matching by replacing per-match get_by_job_and_user calls with a single bulk query.
+
+- [x] T042 Add get_existing_match_keys method to MatchRepository in src/repositories/match_repository.py using single bulk query with IN clauses
+- [x] T043 Refactor MatchingService.match_historical to use get_existing_match_keys set lookup instead of per-match DB calls
+- [x] T044 Update spec.md FR-036 to mandate bulk match existence checking
+
+### Phase 12: Data Integrity & Notification Timestamp Fix
+
+Enforce cv_id NOT NULL, add telegram_published_at for accurate notification timing, add threshold check constraint.
+
+- [x] T045 Make cv_id NOT NULL in JobMatch model (src/models/job_match.py) and update relationship type
+- [x] T046 Add telegram_published_at column to Job model (src/models/job.py) as nullable DateTime(timezone=True)
+- [x] T047 Add CHECK constraint ck_category_threshold_range to JobCategory model (src/models/job_category.py)
+- [x] T048 Create Alembic migration 009: cv_id NOT NULL (with data migration), telegram_published_at column, threshold check constraint
+- [x] T049 Update NotificationService.queue_match_notification to use telegram_published_at with created_at fallback (FR-007 compliance)
+- [x] T050 Update spec.md: FR-005 cv_id NOT NULL, FR-007 telegram_published_at, FR-037/FR-038 new constraints
+
+### Phase 13: Notification Queue Data Integrity & Resilience
+
+Preserve match records on CV deactivation, add job_published_at to queue payload, improve tier upgrade score recalculation, add Redis fetch error handling.
+
+- [x] T051 Remove match record deletion from cancel_notifications_for_cv — only remove from Redis queue, preserve match history
+- [x] T052 Add job_published_at field to enqueue payload in NotificationQueue for accurate tier upgrade score recalculation
+- [x] T053 Update update_score_by_user to use job_published_at from queue payload for score recalculation, with fallback to current score adjustment
+- [x] T054 Pass job_published_at from NotificationService.queue_match_notification to enqueue
+- [x] T055 Add try/except around fetch_due in process_due_notifications — log error with exc_info, return 0 to let next beat tick retry
+- [x] T056 Update spec.md FR-030/031/033/035 for match preservation, job_published_at in queue, and Redis error handling
+
+### Phase 14: Bot Handler Bug Fixes
+
+Fix broken Celery task import, fix user_id type mismatch (Telegram ID vs DB UUID), add Pro tier guard before UI display.
+
+- [x] T057 Fix search_history callback handler: replace non-existent workers.tasks.matching_tasks import with direct MatchingService.match_historical call using DB session
+- [x] T058 Fix search_history callback handler: replace str(callback.from_user.id) with UserRepository.get_by_telegram_id lookup to get DB UUID
+- [x] T059 Add Pro tier check to cmd_search_history handler before displaying days selection UI — non-Pro users see upgrade message with inline button
+- [x] T060 Update spec.md US4 acceptance scenario 6 for upgrade button in rejection message
+
+### Phase 15: Service Consolidation & IntegrityError Handling
+
+Move set_category_threshold into ThresholdService, delete admin_threshold_service, replace MATCHING_THRESHOLD_DEFAULT with DEFAULT_THRESHOLD from threshold_service, make IntegrityError handling specific to unique violations only.
+
+- [x] T061 Add set_category_threshold method to ThresholdService with validation (0.00-1.00 range) and upsert logic
+- [x] T062 Delete src/services/admin_threshold_service.py — functionality moved to ThresholdService
+- [x] T063 Remove MATCHING_THRESHOLD_DEFAULT from matching_service.py, use DEFAULT_THRESHOLD from threshold_service
+- [x] T064 Make IntegrityError handling in MatchRepository.create_match specific to pgcode 23505 (unique violation) — re-raise all other IntegrityErrors
+- [x] T065 Update spec.md FR-006 for specific IntegrityError handling
+
 ## Dependencies
 
 ```

@@ -70,3 +70,22 @@ class ThresholdService:
         if category:
             return category.similarity_threshold
         return None
+
+    async def set_category_threshold(
+        self, category_name: str, threshold: float
+    ) -> JobCategory:
+        if not 0.00 <= threshold <= 1.00:
+            raise ThresholdOutOfRangeError(value=threshold)
+
+        stmt = select(JobCategory).where(JobCategory.name == category_name)
+        result = await self._session.execute(stmt)
+        category = result.scalar_one_or_none()
+
+        if category:
+            category.similarity_threshold = threshold
+        else:
+            category = JobCategory(name=category_name, similarity_threshold=threshold)
+            self._session.add(category)
+
+        await self._session.flush()
+        return category

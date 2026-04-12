@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -61,7 +61,7 @@ def mock_queue():
     queue = AsyncMock()
     queue.enqueue = AsyncMock()
     queue.fetch_due = AsyncMock(return_value=[])
-    queue.remove = AsyncMock()
+    queue.remove_by_cv = AsyncMock()
     return queue
 
 

@@ -1,3 +1,4 @@
+# yaml-language-server: $schema=https://coderabbit.ai/integrations/schema.v2.json
 # JobPulse AI CodeRabbit Configuration
 # Version: 1.1.0 (Aligned with Constitution & Clean Code Standards)
 
@@ -6,6 +7,12 @@ language: "en-US"
 reviews:
   profile: "assertive" 
   request_review_command: "review"
+  
+  # الطريقة الصحيحة لاستثناء الملفات في التحديث الجديد
+  path_filters:
+    - "!**/venv/**"
+    - "!*.md"
+    - "!LICENSE"
   
   instructions: |
     You are the Lead Security & Architecture Auditor for JobPulse AI. 
@@ -49,10 +56,3 @@ reviews:
   chat:
     enabled: true
     allow_unrelated_questions: false
-
-tools:
-  github-review:
-    exclude:
-      - "**/venv/**"            # استثناء ملفات البيئة الافتراضية
-      - "*.md"
-      - "LICENSE"
