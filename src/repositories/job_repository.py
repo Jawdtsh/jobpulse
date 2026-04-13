@@ -111,3 +111,26 @@ class JobRepository(AbstractRepository[Job]):
         embedding_vector: list[float],
     ) -> Optional[Job]:
         return await self.update(job_id, embedding_vector=embedding_vector)
+
+    async def find_similar_to_cv(
+        self,
+        cv_embedding: list[float],
+        threshold: float = 0.80,
+        limit: int = 100,
+        job_ids: list[uuid.UUID] | None = None,
+    ) -> list[tuple[Job, float]]:
+        distance = Job.embedding_vector.cosine_distance(cv_embedding)
+        similarity = literal(1.0) - distance
+        stmt = (
+            select(Job, similarity.label("similarity"))
+            .where(
+                Job.embedding_vector.isnot(None),
+                similarity >= threshold,
+            )
+            .order_by(similarity.desc())
+            .limit(limit)
+        )
+        if job_ids is not None:
+            stmt = stmt.where(Job.id.in_(job_ids))
+        result = await self._session.execute(stmt)
+        return [(row[0], float(row[1])) for row in result.all()]

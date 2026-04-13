@@ -41,7 +41,7 @@ Use async/await consistently throughout codebase. No blocking operations in asyn
 **Frameworks**: FastAPI, aiogram 3.x, Telethon
 **Database**: PostgreSQL 16 with pgvector extension
 **Cache**: Redis
-**Task Queue**: Celery
+**Task Queue**: TaskIQ
 **AI Models**: Gemini 2.5 models (configured via config/ai_models.py)
 
 ## Development Workflow

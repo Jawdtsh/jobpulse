@@ -1,6 +1,6 @@
 ﻿# jobpulse Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-04-12
+Auto-generated from all feature plans. Last updated: 2026-04-13
 
 ## Active Technologies
 - Python 3.12+ + Pydantic v2 (BaseSettings), python-dotenv, cryptography (Fernet validation) (002-settings-config-layer)
@@ -11,6 +11,8 @@ Auto-generated from all feature plans. Last updated: 2026-04-12
 - PostgreSQL with pgvector extension, Redis for caching (004-cv-upload-evaluation)
 - Python 3.12+ + FastAPI, aiogram 3.x, Celery 5.4.0, Redis 5.2.1, SQLAlchemy 2.0 async, pgvector 0.4.2 (005-job-cv-matching)
 - PostgreSQL 16 with pgvector extension (005-job-cv-matching)
+- Python 3.12+ + taskiq==0.11.7, taskiq-redis==1.0.0 (006-celery-to-taskiq-migration)
+- Redis (existing, via settings.redis.redis_url) (006-celery-to-taskiq-migration)
 
 - Python 3.12+ + FastAPI, SQLAlchemy 2.0 async, asyncpg, Alembic, pgvector, Fernet (cryptography) (001-database-schema)
 
@@ -31,9 +33,9 @@ cd src; pytest; ruff check .
 Python 3.12+: Follow standard conventions
 
 ## Recent Changes
+- 006-celery-to-taskiq-migration: Added Python 3.12+ + taskiq==0.11.7, taskiq-redis==1.0.0
 - 005-job-cv-matching: Added Python 3.12+ + FastAPI, aiogram 3.x, Celery 5.4.0, Redis 5.2.1, SQLAlchemy 2.0 async, pgvector 0.4.2
 - 005-job-cv-matching: Added Python 3.12+ + FastAPI, aiogram 3.x, Celery 5.4.0, Redis 5.2.1, SQLAlchemy 2.0 async, pgvector 0.4.2
-- 004-cv-upload-evaluation: Added Python 3.12+ + FastAPI, aiogram 3.x, SQLAlchemy 2.0 async, PostgreSQL 16 + pgvector
 
 
 <!-- MANUAL ADDITIONS START -->

@@ -209,13 +209,15 @@ class TestCVServiceManage:
         mock_repo.get.return_value = mock_cv
         mock_repo.set_active_cv.return_value = mock_cv
 
-        mock_celery = MagicMock()
-        with patch.dict(
-            "sys.modules", {"workers.celery_app": MagicMock(celery_app=mock_celery)}
+        mock_task = MagicMock()
+        mock_task.kiq = AsyncMock()
+        with patch(
+            "workers.tasks.cv_tasks.match_active_cv_to_recent_jobs",
+            mock_task,
         ):
             result = await service.activate_cv(cv_id, user_id)
             assert result == mock_cv
-            mock_celery.send_task.assert_called_once()
+            mock_task.kiq.assert_called_once_with(str(cv_id))
 
     @pytest.mark.asyncio
     async def test_deactivate_cv_success(self, service, mock_repo):
@@ -255,8 +257,15 @@ class TestCVServiceManage:
         mock_repo.get.return_value = mock_cv
         mock_repo.set_active_cv.return_value = None
 
-        result = await service.activate_cv(cv_id, user_id)
-        assert result is None
+        mock_task = MagicMock()
+        mock_task.kiq = AsyncMock()
+        with patch(
+            "workers.tasks.cv_tasks.match_active_cv_to_recent_jobs",
+            mock_task,
+        ):
+            result = await service.activate_cv(cv_id, user_id)
+            assert result is None
+            mock_task.kiq.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_activate_cv_deleted_raises(self, service, mock_repo):
