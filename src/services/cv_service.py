@@ -1,4 +1,3 @@
-import asyncio
 import logging
 import uuid
 from io import BytesIO
@@ -236,13 +235,9 @@ class CVService:
             raise CVDeletedError(cv_id=cv_id)
         result = await self._repo.set_active_cv(cv_id, user_id)
         if result:
-            from workers.celery_app import celery_app
+            from workers.tasks.cv_tasks import match_active_cv_to_recent_jobs
 
-            await asyncio.to_thread(
-                celery_app.send_task,
-                "cv.match_active_cv_to_recent_jobs",
-                args=[str(cv_id)],
-            )
+            await match_active_cv_to_recent_jobs.kiq(str(cv_id))
         return result
 
     async def deactivate_cv(self, cv_id: uuid.UUID, user_id: uuid.UUID):

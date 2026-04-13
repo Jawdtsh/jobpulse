@@ -31,10 +31,10 @@ services:
       timeout: 5s
       retries: 5
 
-  celery-worker:
+  taskiq-worker:
     build: .
-    container_name: jobpulse_celery_worker
-    command: celery -A workers.celery_app worker --loglevel=info --pool=asyncio
+    container_name: jobpulse_taskiq_worker
+    command: taskiq worker workers.taskiq_app:broker --fs-discover
     env_file: .env
     depends_on:
       redis:
@@ -43,10 +43,10 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
-  celery-beat:
+  taskiq-scheduler:
     build: .
-    container_name: jobpulse_celery_beat
-    command: celery -A workers.celery_app beat --loglevel=info
+    container_name: jobpulse_taskiq_scheduler
+    command: taskiq scheduler workers.taskiq_app:scheduler --fs-discover
     env_file: .env
     depends_on:
       redis:

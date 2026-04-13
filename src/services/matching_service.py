@@ -147,3 +147,55 @@ class MatchingService:
         await self._session.flush()
         logger.info("Historical match for user %s: %d results", user_id, len(results))
         return results
+
+    async def match_cv_to_recent_jobs(
+        self,
+        cv_id: uuid.UUID,
+        days: int = 7,
+    ) -> list[dict]:
+        try:
+            cv = await self._cv_repo.get(cv_id)
+            if not cv or cv.embedding_vector is None:
+                return []
+
+            effective_threshold = await self._threshold_service.get_effective_threshold(
+                cv.user_id, None
+            )
+
+            cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
+            recent_jobs = await self._job_repo.get_jobs_since(cutoff_date)
+
+            if not recent_jobs:
+                return []
+
+            job_ids = [job.id for job in recent_jobs]
+            similar_jobs = await self._job_repo.find_similar_to_cv(
+                cv_embedding=cv.embedding_vector,
+                threshold=effective_threshold,
+                limit=100,
+                job_ids=job_ids,
+            )
+
+            results = []
+            for job, score in similar_jobs:
+                match = await self._match_repo.create_match(
+                    job_id=job.id,
+                    user_id=cv.user_id,
+                    cv_id=cv.id,
+                    similarity_score=round(score, 2),
+                )
+                if match:
+                    results.append(
+                        {
+                            "match_id": str(match.id),
+                            "job_id": str(job.id),
+                            "similarity_score": round(score, 2),
+                        }
+                    )
+
+            await self._session.flush()
+            logger.info("CV %s matched against %d recent jobs", cv_id, len(results))
+            return results
+        except Exception as e:
+            logger.exception("CV-to-jobs matching failed cv_id=%s: %s", cv_id, e)
+            return {"status": "failed", "cv_id": str(cv_id), "error": str(e)}
