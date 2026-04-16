@@ -1,6 +1,6 @@
 import uuid
 from typing import TYPE_CHECKING
-from sqlalchemy import Float, ForeignKey, CheckConstraint
+from sqlalchemy import Boolean, Float, ForeignKey, CheckConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
 from src.models.base import UUIDPrimaryKeyMixin, TimestampMixin
@@ -26,5 +26,8 @@ class UserPreferences(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         unique=True,
     )
     similarity_threshold: Mapped[float | None] = mapped_column(Float, nullable=True)
+    notification_enabled: Mapped[bool] = mapped_column(
+        Boolean, default=True, nullable=False
+    )
 
     user: Mapped["User"] = relationship("User")

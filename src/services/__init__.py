@@ -1,5 +1,6 @@
 from src.services.admin_alert_service import AdminAlertService
 from src.services.ai_provider_service import AIProviderService
+from src.services.bot_session_service import BotSessionService
 from src.services.exceptions import (
     AIServiceUnavailableError,
     ChannelInaccessibleError,
@@ -21,6 +22,7 @@ from src.services.job_ingestion_service import JobIngestionService
 from src.services.matching_service import MatchingService
 from src.services.metrics_service import MetricsService
 from src.services.notification_service import NotificationService
+from src.services.saved_job_service import SavedJobService
 from src.services.threshold_service import ThresholdService
 from src.services.telegram_scraper_service import TelegramScraperService
 
@@ -28,6 +30,7 @@ __all__ = [
     "AdminAlertService",
     "AIServiceUnavailableError",
     "AIProviderService",
+    "BotSessionService",
     "ChannelInaccessibleError",
     "DailyLimitReachedError",
     "EmbeddingNotAvailableError",
@@ -44,6 +47,7 @@ __all__ = [
     "NotificationService",
     "PipelineError",
     "ProTierRequiredError",
+    "SavedJobService",
     "SessionExhaustedError",
     "TelegramScraperService",
     "ThresholdOutOfRangeError",

@@ -1,6 +1,6 @@
 import uuid
 from typing import TYPE_CHECKING
-from sqlalchemy import BigInteger, ForeignKey, String
+from sqlalchemy import BigInteger, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
 from src.models.base import UUIDPrimaryKeyMixin, TimestampMixin
@@ -14,6 +14,7 @@ if TYPE_CHECKING:
     from src.models.cover_letter_log import CoverLetterLog
     from src.models.user_interaction import UserInteraction
     from src.models.job_report import JobReport
+    from src.models.language import Language
 
 
 class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
@@ -31,6 +32,12 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         UUID(as_uuid=True),
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
+    )
+    language_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("languages.id"),
+        default=1,
+        nullable=False,
     )
 
     cvs: Mapped[list["UserCV"]] = relationship(
@@ -68,6 +75,7 @@ class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
         back_populates="user",
         cascade="all, delete-orphan",
     )
+    language: Mapped["Language"] = relationship("Language")
     job_reports: Mapped[list["JobReport"]] = relationship(
         "JobReport",
         back_populates="reporter_user",

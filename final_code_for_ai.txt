@@ -1,0 +1,1723 @@
+
+========================================
+FILE PATH: .gitignore
+========================================
+
+.env
+.env.local
+.env.*.local
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+logs/
+*.log
+coverage/
+.ruff_cache/
+.DS_Store
+Thumbs.db
+*.tmp
+*.swp
+.idea/
+.vscode/
+*.egg
+opencode.json
+count_tokens.py
+celery_to_taskiq_migration_analysis.md
+
+========================================
+FILE PATH: AGENTS.md
+========================================
+
+﻿# jobpulse Development Guidelines
+
+Auto-generated from all feature plans. Last updated: 2026-04-16
+
+## Active Technologies
+- Python 3.12+ + Pydantic v2 (BaseSettings), python-dotenv, cryptography (Fernet validation) (002-settings-config-layer)
+- N/A (configuration only, no persistent storage) (002-settings-config-layer)
+- Python 3.12+ + Telethon 1.42.0 (Telegram scraping), Celery 5.4.0 (task queue), google-generativeai 0.8.3 (Gemini AI), openai 1.68.2 (fallback providers), Redis 5.2.1 (Celery broker/cache), SQLAlchemy 2.0.38 async (database access), pgvector 0.4.2 (vector storage) (003-job-ingestion-pipeline)
+- PostgreSQL 16 with pgvector (jobs table with HNSW index), Redis (Celery broker, spam rule caching) (003-job-ingestion-pipeline)
+- Python 3.12+ + FastAPI, aiogram 3.x, SQLAlchemy 2.0 async, PostgreSQL 16 + pgvector (004-cv-upload-evaluation)
+- PostgreSQL with pgvector extension, Redis for caching (004-cv-upload-evaluation)
+- Python 3.12+ + FastAPI, aiogram 3.x, Celery 5.4.0, Redis 5.2.1, SQLAlchemy 2.0 async, pgvector 0.4.2 (005-job-cv-matching)
+- PostgreSQL 16 with pgvector extension (005-job-cv-matching)
+- Python 3.12+ + taskiq==0.11.7, taskiq-redis==1.0.0 (006-celery-to-taskiq-migration)
+- Redis (existing, via settings.redis.redis_url) (006-celery-to-taskiq-migration)
+- Python 3.12+ + aiogram 3.x (Telegram Bot Framework), SQLAlchemy 2.0 async (via existing repositories), Redis (session state, rate limiting) (007-bot-handlers-ux)
+- PostgreSQL 16 + pgvector (existing), Redis (BotSession state, rate limiting) (007-bot-handlers-ux)
+
+- Python 3.12+ + FastAPI, SQLAlchemy 2.0 async, asyncpg, Alembic, pgvector, Fernet (cryptography) (001-database-schema)
+
+## Project Structure
+
+```text
+backend/
+frontend/
+tests/
+```
+
+## Commands
+
+cd src; pytest; ruff check .
+
+## Code Style
+
+Python 3.12+: Follow standard conventions
+
+## Recent Changes
+- 007-bot-handlers-ux: Added Python 3.12+ + aiogram 3.x (Telegram Bot Framework), SQLAlchemy 2.0 async (via existing repositories), Redis (session state, rate limiting)
+- 007-bot-handlers-ux: Added Python 3.12+ + aiogram 3.x (Telegram Bot Framework), SQLAlchemy 2.0 async (via existing repositories), Redis (session state, rate limiting)
+- 007-bot-handlers-ux: Added Python 3.12+ + aiogram 3.x (Telegram Bot Framework), SQLAlchemy 2.0 async (via existing repositories), Redis (session state, rate limiting)
+
+
+<!-- MANUAL ADDITIONS START -->
+<!-- MANUAL ADDITIONS END -->
+
+========================================
+FILE PATH: main.py
+========================================
+
+import asyncio
+import logging
+
+from aiogram import Bot, Dispatcher
+from aiogram.enums import ParseMode
+from aiogram.fsm.storage.memory import MemoryStorage
+
+from config.settings import get_settings
+from src.bot.router import main_router
+from src.bot.middlewares import AuthMiddleware, RateLimiterMiddleware
+from src.bot.utils.logger import setup_logging
+
+logger = logging.getLogger(__name__)
+
+
+async def main() -> None:
+    setup_logging()
+    settings = get_settings()
+
+    bot = Bot(token=settings.telegram.bot_token, parse_mode=ParseMode.HTML)
+    storage = MemoryStorage()
+    dp = Dispatcher(storage=storage)
+
+    dp.message.middleware(AuthMiddleware())
+    dp.message.middleware(RateLimiterMiddleware())
+    dp.callback_query.middleware(AuthMiddleware())
+    dp.callback_query.middleware(RateLimiterMiddleware())
+
+    dp.include_router(main_router)
+
+    from src.bot.health import start_health_server
+
+    _ = asyncio.create_task(start_health_server())
+
+    logger.info("Starting bot polling...")
+    await dp.start_polling(bot)
+
+
+if __name__ == "__main__":
+    asyncio.run(main())
+
+========================================
+FILE PATH: src/models/__init__.py
+========================================
+
+from src.models.archived_job import ArchivedJob
+from src.models.base import UUIDPrimaryKeyMixin, TimestampMixin
+from src.models.cover_letter_log import CoverLetterLog
+from src.models.job import Job
+from src.models.job_category import JobCategory
+from src.models.job_match import JobMatch
+from src.models.job_report import JobReport
+from src.models.monitored_channel import MonitoredChannel
+from src.models.referral_reward import ReferralReward
+from src.models.spam_rule import SpamRule
+from src.models.subscription import Subscription
+from src.models.telegram_session import TelegramSession
+from src.models.user import User
+from src.models.user_cv import UserCV
+from src.models.user_interaction import UserInteraction
+from src.models.user_preferences import UserPreferences
+from src.models.saved_job import SavedJob
+from src.models.language import Language
+
+__all__ = [
+    "ArchivedJob",
+    "UUIDPrimaryKeyMixin",
+    "TimestampMixin",
+    "CoverLetterLog",
+    "Job",
+    "JobCategory",
+    "JobMatch",
+    "JobReport",
+    "MonitoredChannel",
+    "ReferralReward",
+    "SpamRule",
+    "Subscription",
+    "TelegramSession",
+    "User",
+    "UserCV",
+    "UserInteraction",
+    "UserPreferences",
+    "SavedJob",
+    "Language",
+]
+
+========================================
+FILE PATH: src/models/job_match.py
+========================================
+
+import uuid
+from datetime import datetime
+from typing import TYPE_CHECKING
+from sqlalchemy import Boolean, Float, ForeignKey, UniqueConstraint
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.dialects.postgresql import UUID
+from src.models.base import UUIDPrimaryKeyMixin, TimestampMixin
+from src.database import Base
+
+if TYPE_CHECKING:
+    from src.models.user import User
+    from src.models.job import Job
+    from src.models.user_cv import UserCV
+
+
+class JobMatch(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    __tablename__ = "job_matches"
+    __table_args__ = (
+        UniqueConstraint("job_id", "user_id", "cv_id", name="uq_job_match_cv"),
+    )
+
+    job_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("jobs.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    cv_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("user_cvs.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    similarity_score: Mapped[float] = mapped_column(Float, nullable=False)
+    is_notified: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    notified_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    is_clicked: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    clicked_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    is_dismissed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+    job: Mapped["Job"] = relationship("Job", back_populates="matches")
+    user: Mapped["User"] = relationship("User", back_populates="job_matches")
+    cv: Mapped["UserCV"] = relationship("UserCV")
+
+========================================
+FILE PATH: src/models/user.py
+========================================
+
+import uuid
+from typing import TYPE_CHECKING
+from sqlalchemy import BigInteger, ForeignKey, Integer, String
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.dialects.postgresql import UUID
+from src.models.base import UUIDPrimaryKeyMixin, TimestampMixin
+from src.database import Base
+
+if TYPE_CHECKING:
+    from src.models.user_cv import UserCV
+    from src.models.job_match import JobMatch
+    from src.models.subscription import Subscription
+    from src.models.referral_reward import ReferralReward
+    from src.models.cover_letter_log import CoverLetterLog
+    from src.models.user_interaction import UserInteraction
+    from src.models.job_report import JobReport
+    from src.models.language import Language
+
+
+class User(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    __tablename__ = "users"
+
+    telegram_id: Mapped[int] = mapped_column(BigInteger, unique=True, nullable=False)
+    username: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    first_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    last_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    referral_code: Mapped[str] = mapped_column(String(12), unique=True, nullable=False)
+    subscription_tier: Mapped[str] = mapped_column(
+        String(20), default="free", nullable=False
+    )
+    referred_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    language_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("languages.id"),
+        default=1,
+        nullable=False,
+    )
+
+    cvs: Mapped[list["UserCV"]] = relationship(
+        "UserCV",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    job_matches: Mapped[list["JobMatch"]] = relationship(
+        "JobMatch",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    subscriptions: Mapped[list["Subscription"]] = relationship(
+        "Subscription",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    referral_rewards_as_referrer: Mapped[list["ReferralReward"]] = relationship(
+        "ReferralReward",
+        foreign_keys="ReferralReward.referrer_id",
+        back_populates="referrer",
+    )
+    referral_rewards_as_referred: Mapped[list["ReferralReward"]] = relationship(
+        "ReferralReward",
+        foreign_keys="ReferralReward.referred_user_id",
+        back_populates="referred_user",
+    )
+    cover_letter_logs: Mapped[list["CoverLetterLog"]] = relationship(
+        "CoverLetterLog",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    interactions: Mapped[list["UserInteraction"]] = relationship(
+        "UserInteraction",
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )
+    language: Mapped["Language"] = relationship("Language")
+    job_reports: Mapped[list["JobReport"]] = relationship(
+        "JobReport",
+        back_populates="reporter_user",
+        cascade="all, delete-orphan",
+    )
+
+========================================
+FILE PATH: src/models/user_preferences.py
+========================================
+
+import uuid
+from typing import TYPE_CHECKING
+from sqlalchemy import Boolean, Float, ForeignKey, CheckConstraint
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.dialects.postgresql import UUID
+from src.models.base import UUIDPrimaryKeyMixin, TimestampMixin
+from src.database import Base
+
+if TYPE_CHECKING:
+    from src.models.user import User
+
+
+class UserPreferences(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    __tablename__ = "user_preferences"
+    __table_args__ = (
+        CheckConstraint(
+            "similarity_threshold BETWEEN 0.60 AND 1.00",
+            name="ck_user_preferences_similarity_threshold",
+        ),
+    )
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
+    similarity_threshold: Mapped[float | None] = mapped_column(Float, nullable=True)
+    notification_enabled: Mapped[bool] = mapped_column(
+        Boolean, default=True, nullable=False
+    )
+
+    user: Mapped["User"] = relationship("User")
+
+========================================
+FILE PATH: src/repositories/__init__.py
+========================================
+
+from src.repositories.archived_job_repository import ArchivedJobRepository
+from src.repositories.channel_repository import ChannelRepository
+from src.repositories.base import AbstractRepository
+from src.repositories.cover_letter_repository import CoverLetterRepository
+from src.repositories.cv_repository import CVRepository
+from src.repositories.interaction_repository import InteractionRepository
+from src.repositories.job_repository import JobRepository
+from src.repositories.match_repository import MatchRepository
+from src.repositories.report_repository import ReportRepository
+from src.repositories.referral_reward_repository import ReferralRewardRepository
+from src.repositories.spam_rule_repository import SpamRuleRepository
+from src.repositories.subscription_repository import SubscriptionRepository
+from src.repositories.telegram_session_repository import TelegramSessionRepository
+from src.repositories.user_repository import UserRepository
+from src.repositories.saved_job_repository import SavedJobRepository
+
+__all__ = [
+    "ArchivedJobRepository",
+    "ChannelRepository",
+    "AbstractRepository",
+    "CoverLetterRepository",
+    "CVRepository",
+    "InteractionRepository",
+    "JobRepository",
+    "MatchRepository",
+    "ReportRepository",
+    "ReferralRewardRepository",
+    "SpamRuleRepository",
+    "SubscriptionRepository",
+    "TelegramSessionRepository",
+    "UserRepository",
+    "SavedJobRepository",
+]
+
+========================================
+FILE PATH: src/services/__init__.py
+========================================
+
+from src.services.admin_alert_service import AdminAlertService
+from src.services.ai_provider_service import AIProviderService
+from src.services.bot_session_service import BotSessionService
+from src.services.exceptions import (
+    AIServiceUnavailableError,
+    ChannelInaccessibleError,
+    DailyLimitReachedError,
+    EmbeddingNotAvailableError,
+    InvalidEmbeddingDimensionsError,
+    InvalidModelTypeError,
+    JobNotFoundError,
+    PipelineError,
+    ProTierRequiredError,
+    SessionExhaustedError,
+    ThresholdOutOfRangeError,
+)
+from src.services.job_classifier_service import JobClassifierService
+from src.services.job_embedding_service import JobEmbeddingService
+from src.services.job_extractor_service import JobExtractorService
+from src.services.job_filter_service import JobFilterService
+from src.services.job_ingestion_service import JobIngestionService
+from src.services.matching_service import MatchingService
+from src.services.metrics_service import MetricsService
+from src.services.notification_service import NotificationService
+from src.services.saved_job_service import SavedJobService
+from src.services.threshold_service import ThresholdService
+from src.services.telegram_scraper_service import TelegramScraperService
+
+__all__ = [
+    "AdminAlertService",
+    "AIServiceUnavailableError",
+    "AIProviderService",
+    "BotSessionService",
+    "ChannelInaccessibleError",
+    "DailyLimitReachedError",
+    "EmbeddingNotAvailableError",
+    "InvalidEmbeddingDimensionsError",
+    "InvalidModelTypeError",
+    "JobClassifierService",
+    "JobEmbeddingService",
+    "JobExtractorService",
+    "JobFilterService",
+    "JobIngestionService",
+    "JobNotFoundError",
+    "MatchingService",
+    "MetricsService",
+    "NotificationService",
+    "PipelineError",
+    "ProTierRequiredError",
+    "SavedJobService",
+    "SessionExhaustedError",
+    "TelegramScraperService",
+    "ThresholdOutOfRangeError",
+    "ThresholdService",
+]
+
+========================================
+FILE PATH: files_list.txt
+========================================
+
+��. g i t i g n o r e  
+ A G E N T S . m d  
+ m a i n . p y  
+ s r c / m o d e l s / _ _ i n i t _ _ . p y  
+ s r c / m o d e l s / j o b _ m a t c h . p y  
+ s r c / m o d e l s / u s e r . p y  
+ s r c / m o d e l s / u s e r _ p r e f e r e n c e s . p y  
+ s r c / r e p o s i t o r i e s / _ _ i n i t _ _ . p y  
+ s r c / s e r v i c e s / _ _ i n i t _ _ . p y  
+ f i l e s _ l i s t . t x t  
+ s p e c s / 0 0 7 - b o t - h a n d l e r s - u x /  
+ s r c / b o t / h a n d l e r s /  
+ s r c / b o t / h e a l t h . p y  
+ s r c / b o t / k e y b o a r d s . p y  
+ s r c / b o t / l o c a l e s /  
+ s r c / b o t / m i d d l e w a r e s . p y  
+ s r c / b o t / r o u t e r . p y  
+ s r c / b o t / s t a t e s . p y  
+ s r c / b o t / u t i l s /  
+ s r c / m o d e l s / l a n g u a g e . p y  
+ s r c / m o d e l s / s a v e d _ j o b . p y  
+ s r c / r e p o s i t o r i e s / s a v e d _ j o b _ r e p o s i t o r y . p y  
+ s r c / s e r v i c e s / b o t _ s e s s i o n _ s e r v i c e . p y  
+ s r c / s e r v i c e s / s a v e d _ j o b _ s e r v i c e . p y  
+ t e s t s / i n t e g r a t i o n / t e s t _ c v _ u p l o a d _ f l o w . p y  
+ t e s t s / i n t e g r a t i o n / t e s t _ f i l t e r _ p e r s i s t e n c e . p y  
+ t e s t s / i n t e g r a t i o n / t e s t _ j o b _ n o t i f i c a t i o n _ f l o w . p y  
+ t e s t s / i n t e g r a t i o n / t e s t _ p e r f o r m a n c e . p y  
+ t e s t s / i n t e g r a t i o n / t e s t _ r e g i s t r a t i o n _ f l o w . p y  
+ t e s t s / u n i t / b o t /  
+ t e s t s / u n i t / s e r v i c e s /  
+ 
+========================================
+FILE PATH: final_code_for_ai.txt
+========================================
+
+
+========================================
+FILE PATH: src/bot/health.py
+========================================
+
+import logging
+
+from aiohttp import web
+
+logger = logging.getLogger(__name__)
+
+_app: web.Application | None = None
+
+
+async def _health_handler(request: web.Request) -> web.Response:
+    checks = {"bot": "ok"}
+
+    try:
+        from config.settings import get_settings
+        import redis.asyncio as aioredis
+
+        settings = get_settings()
+        r = aioredis.from_url(settings.redis.redis_url)
+        await r.ping()
+        await r.aclose()
+        checks["redis"] = "ok"
+    except Exception as e:
+        checks["redis"] = f"error: {e}"
+
+    try:
+        from src.database import get_async_session
+
+        async for session in get_async_session():
+            await session.execute(__import__("sqlalchemy").text("SELECT 1"))
+            break
+        checks["database"] = "ok"
+    except Exception as e:
+        checks["database"] = f"error: {e}"
+
+    status_code = 200 if all(v == "ok" for v in checks.values()) else 503
+    return web.json_response(checks, status=status_code)
+
+
+def create_health_app() -> web.Application:
+    app = web.Application()
+    app.router.add_get("/health", _health_handler)
+    return app
+
+
+async def start_health_server(port: int = 8080) -> None:
+    global _app
+    _app = create_health_app()
+    runner = web.AppRunner(_app)
+    await runner.setup()
+    site = web.TCPSite(runner, "0.0.0.0", port)
+    await site.start()
+    logger.info("Health endpoint started on port %d", port)
+
+========================================
+FILE PATH: src/bot/keyboards.py
+========================================
+
+from aiogram.types import InlineKeyboardMarkup
+from aiogram.utils.keyboard import InlineKeyboardBuilder
+
+
+def main_menu_keyboard() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(text="📤 رفع سيرة ذاتية (Upload CV)", callback_data="menu:upload_cv")
+    builder.button(text="💼 وظائفي (My Jobs)", callback_data="menu:my_jobs")
+    builder.button(text="🎁 دعوة صديق (Invite Friends)", callback_data="menu:invite")
+    builder.button(text="⚙️ الإعدادات (Settings)", callback_data="menu:settings")
+    builder.adjust(2)
+    return builder.as_markup()
+
+
+def job_notification_keyboard(job_id: str, match_id: str) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(text="💾 حفظ (Save)", callback_data=f"save_job:{job_id}")
+    builder.button(text="📋 تفاصيل (Details)", callback_data=f"job_details:{job_id}")
+    builder.button(text="🗑️ تجاهل (Dismiss)", callback_data=f"dismiss_match:{match_id}")
+    builder.adjust(2, 1)
+    return builder.as_markup()
+
+
+def saved_jobs_view_keyboard() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(text="💾 المحفوظة (Saved)", callback_data="view:saved")
+    builder.button(text="📋 كل الإشعارات (All)", callback_data="view:notified")
+    builder.button(text="🗑️ المتجاهلة (Dismissed)", callback_data="view:dismissed")
+    builder.adjust(3)
+    return builder.as_markup()
+
+
+def pagination_keyboard(
+    view: str, current_page: int, total_pages: int
+) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    if current_page > 1:
+        builder.button(
+            text="◀️ السابق (Prev)", callback_data=f"jobs_page:{view}:{current_page - 1}"
+        )
+    builder.button(
+        text=f"{current_page}/{total_pages}",
+        callback_data=f"jobs_page:{view}:{current_page}",
+    )
+    if current_page < total_pages:
+        builder.button(
+            text="التالي ▶️ (Next)", callback_data=f"jobs_page:{view}:{current_page + 1}"
+        )
+    builder.adjust(3)
+    return builder.as_markup()
+
+
+def similarity_filter_keyboard() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(text=">80%", callback_data="filter_sim:80")
+    builder.button(text=">70%", callback_data="filter_sim:70")
+    builder.button(text="الكل (All)", callback_data="filter_sim:all")
+    builder.adjust(3)
+    return builder.as_markup()
+
+
+def date_filter_keyboard() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(text="7 أيام (7d)", callback_data="filter_date:7")
+    builder.button(text="14 يوم (14d)", callback_data="filter_date:14")
+    builder.button(text="30 يوم (30d)", callback_data="filter_date:30")
+    builder.button(text="الكل (All)", callback_data="filter_date:all")
+    builder.adjust(2, 2)
+    return builder.as_markup()
+
+
+def settings_keyboard(threshold: int, notifications_on: bool) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    for val in [60, 70, 80, 90, 100]:
+        marker = " ✅" if val == threshold else ""
+        builder.button(text=f"{val}%{marker}", callback_data=f"threshold:{val}")
+    builder.adjust(5)
+
+    notif_text = (
+        "🔕 إيقاف الإشعارات (Off)" if notifications_on else "🔔 تفعيل الإشعارات (On)"
+    )
+    builder.button(text=notif_text, callback_data="toggle_notifications")
+    builder.button(text="💳 ترقية الخطة (Upgrade)", callback_data="upgrade_plan:basic")
+    builder.button(text="📋 نسخ الرمز (Copy Code)", callback_data="copy_referral")
+    builder.button(text="🔗 مشاركة (Share)", callback_data="share_referral")
+    builder.button(text="🏠 القائمة (Menu)", callback_data="back_to_menu")
+    builder.adjust(5, 2, 2, 1)
+    return builder.as_markup()
+
+
+def cv_list_keyboard(cvs: list[dict]) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    for cv in cvs:
+        status = "✅" if cv.get("is_active") else "⏸️"
+        builder.button(
+            text=f"{status} {cv['title']}",
+            callback_data=f"cv_details:{cv['id']}",
+        )
+    builder.button(text="📤 رفع جديد (Upload New)", callback_data="menu:upload_cv")
+    builder.button(text="🏠 القائمة (Menu)", callback_data="back_to_menu")
+    builder.adjust(1, 2)
+    return builder.as_markup()
+
+
+def cv_details_keyboard(cv_id: str, is_active: bool) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    if not is_active:
+        builder.button(text="✅ تفعيل (Activate)", callback_data=f"activate_cv:{cv_id}")
+    builder.button(text="🗑️ حذف (Delete)", callback_data=f"delete_cv:{cv_id}")
+    builder.button(text="🔙 رجوع (Back)", callback_data="back_to_cvs")
+    builder.adjust(2, 1)
+    return builder.as_markup()
+
+
+def confirm_delete_keyboard(cv_id: str) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(text="✅ نعم (Yes)", callback_data=f"confirm_delete:{cv_id}:yes")
+    builder.button(text="❌ لا (No)", callback_data=f"confirm_delete:{cv_id}:no")
+    builder.adjust(2)
+    return builder.as_markup()
+
+
+def confirm_replace_keyboard() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(
+        text="✅ نعم استبدل (Yes Replace)", callback_data="confirm_replace:yes"
+    )
+    builder.button(text="❌ لا (No)", callback_data="confirm_replace:no")
+    builder.adjust(2)
+    return builder.as_markup()
+
+
+def subscription_keyboard(current_tier: str) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    if current_tier != "basic":
+        builder.button(text="🥉 Basic - $7/شهر", callback_data="upgrade_plan:basic")
+    else:
+        builder.button(text="🥉 Basic ✅", callback_data="upgrade_plan:current")
+    if current_tier != "pro":
+        builder.button(text="🥇 Pro - $12/شهر", callback_data="upgrade_plan:pro")
+    else:
+        builder.button(text="🥇 Pro ✅", callback_data="upgrade_plan:current")
+    builder.button(text="🏠 القائمة (Menu)", callback_data="back_to_menu")
+    builder.adjust(2, 1)
+    return builder.as_markup()
+
+
+def referral_keyboard(referral_code: str, bot_username: str) -> InlineKeyboardMarkup:
+    link = f"https://t.me/{bot_username}?start=ref_{referral_code}"
+    builder = InlineKeyboardBuilder()
+    builder.button(
+        text="🔗 مشاركة الرابط (Share)", url=f"https://t.me/share/url?url={link}"
+    )
+    builder.button(text="📋 نسخ الرمز (Copy)", callback_data="copy_referral")
+    builder.button(text="🏠 القائمة (Menu)", callback_data="back_to_menu")
+    builder.adjust(1, 2)
+    return builder.as_markup()
+
+
+def error_retry_keyboard(action: str, params: str = "") -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(
+        text="🔄 إعادة المحاولة (Retry)", callback_data=f"retry:{action}:{params}"
+    )
+    builder.button(text="🏠 القائمة (Menu)", callback_data="back_to_menu")
+    builder.adjust(2)
+    return builder.as_markup()
+
+
+def job_card_keyboard(job_id: str, is_saved: bool) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    if is_saved:
+        builder.button(
+            text="💾 إلغاء الحفظ (Unsave)", callback_data=f"unsave_job:{job_id}"
+        )
+    else:
+        builder.button(text="💾 حفظ (Save)", callback_data=f"save_job:{job_id}")
+    builder.button(text="📋 تفاصيل (Details)", callback_data=f"job_details:{job_id}")
+    builder.adjust(2)
+    return builder.as_markup()
+
+========================================
+FILE PATH: src/bot/middlewares.py
+========================================
+
+import logging
+import time
+from collections import defaultdict
+
+from aiogram import BaseMiddleware
+from aiogram.types import CallbackQuery
+
+logger = logging.getLogger(__name__)
+
+
+class AuthMiddleware(BaseMiddleware):
+    async def __call__(self, handler, event, data):
+        user = getattr(event, "from_user", None)
+        if user is None:
+            return await handler(event, data)
+
+        from src.database import get_async_session
+        from src.repositories.user_repository import UserRepository
+
+        async for session in get_async_session():
+            user_repo = UserRepository(session)
+            db_user = await user_repo.get_by_telegram_id(user.id)
+            data["db_user"] = db_user
+            break
+
+        return await handler(event, data)
+
+
+class RateLimiterMiddleware(BaseMiddleware):
+    def __init__(self, rate_limit: int = 30):
+        self._rate_limit = rate_limit
+        self._user_timestamps: dict[int, list[float]] = defaultdict(list)
+        self._queue: dict[int, list] = defaultdict(list)
+
+    async def __call__(self, handler, event, data):
+        user = getattr(event, "from_user", None)
+        if user is None:
+            return await handler(event, data)
+
+        now = time.monotonic()
+        timestamps = self._user_timestamps[user.id]
+        timestamps = [t for t in timestamps if now - t < 1.0]
+        self._user_timestamps[user.id] = timestamps
+
+        if len(timestamps) >= self._rate_limit:
+            if isinstance(event, CallbackQuery):
+                await event.answer(
+                    "يرجى الانتظار... (Please wait...)", show_alert=False
+                )
+            return None
+
+        timestamps.append(now)
+        return await handler(event, data)
+
+
+class CallbackValidationMiddleware(BaseMiddleware):
+    async def __call__(self, handler, event, data):
+        if isinstance(event, CallbackQuery):
+            if event.message and event.message.reply_markup:
+                pass
+        return await handler(event, data)
+
+========================================
+FILE PATH: src/bot/router.py
+========================================
+
+import logging
+
+from aiogram import Router
+
+from src.bot.handlers.registration import router as registration_router
+from src.bot.handlers.cv_upload import router as cv_upload_router
+from src.bot.handlers.cv_management import router as cv_management_router
+from src.bot.handlers.job_notifications import router as job_notifications_router
+from src.bot.handlers.saved_jobs import router as saved_jobs_router
+from src.bot.handlers.settings import router as settings_router
+from src.bot.handlers.referral import router as referral_router
+from src.bot.handlers.subscription import router as subscription_router
+from src.bot.handlers.errors import router as errors_router
+
+logger = logging.getLogger(__name__)
+
+main_router = Router()
+
+main_router.include_router(registration_router)
+main_router.include_router(cv_upload_router)
+main_router.include_router(cv_management_router)
+main_router.include_router(job_notifications_router)
+main_router.include_router(saved_jobs_router)
+main_router.include_router(settings_router)
+main_router.include_router(referral_router)
+main_router.include_router(subscription_router)
+main_router.include_router(errors_router)
+
+logger.info("All bot handlers registered")
+
+========================================
+FILE PATH: src/bot/states.py
+========================================
+
+from aiogram.fsm.state import State, StatesGroup
+
+
+class CVUploadState(StatesGroup):
+    waiting_for_file = State()
+    processing_file = State()
+    confirming_replace = State()
+
+
+class SettingsState(StatesGroup):
+    threshold_editing = State()
+
+
+class MyJobsState(StatesGroup):
+    browsing = State()
+
+========================================
+FILE PATH: src/models/language.py
+========================================
+
+from sqlalchemy import Integer, String
+from sqlalchemy.orm import Mapped, mapped_column
+from src.database import Base
+
+
+class Language(Base):
+    __tablename__ = "languages"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    code: Mapped[str] = mapped_column(String(2), unique=True, nullable=False)
+    name: Mapped[str] = mapped_column(String(50), nullable=False)
+
+========================================
+FILE PATH: src/models/saved_job.py
+========================================
+
+import uuid
+from datetime import datetime, timezone
+from typing import TYPE_CHECKING
+from sqlalchemy import DateTime, ForeignKey, UniqueConstraint
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.dialects.postgresql import UUID
+from src.models.base import UUIDPrimaryKeyMixin, TimestampMixin
+from src.database import Base
+
+if TYPE_CHECKING:
+    from src.models.user import User
+    from src.models.job import Job
+
+
+class SavedJob(Base, UUIDPrimaryKeyMixin, TimestampMixin):
+    __tablename__ = "saved_jobs"
+    __table_args__ = (
+        UniqueConstraint("user_id", "job_id", name="uq_saved_job_user_job"),
+    )
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    job_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("jobs.id", ondelete="SET NULL"),
+        nullable=False,
+    )
+    saved_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
+        nullable=False,
+    )
+
+    user: Mapped["User"] = relationship("User")
+    job: Mapped["Job | None"] = relationship("Job")
+
+========================================
+FILE PATH: src/repositories/saved_job_repository.py
+========================================
+
+import uuid
+from datetime import datetime, timezone
+from typing import Optional
+from sqlalchemy import select, func
+from sqlalchemy.ext.asyncio import AsyncSession
+from src.models.saved_job import SavedJob
+from src.repositories.base import AbstractRepository
+
+
+class SavedJobRepository(AbstractRepository[SavedJob]):
+    def __init__(self, session: AsyncSession):
+        super().__init__(session, SavedJob)
+
+    async def get_by_user_and_job(
+        self, user_id: uuid.UUID, job_id: uuid.UUID
+    ) -> Optional[SavedJob]:
+        stmt = select(SavedJob).where(
+            SavedJob.user_id == user_id,
+            SavedJob.job_id == job_id,
+        )
+        result = await self._session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def get_saved_by_user(
+        self,
+        user_id: uuid.UUID,
+        skip: int = 0,
+        limit: int = 5,
+        min_similarity: float | None = None,
+        days: int | None = None,
+    ) -> list[SavedJob]:
+        stmt = (
+            select(SavedJob)
+            .where(SavedJob.user_id == user_id)
+            .order_by(SavedJob.saved_at.desc())
+            .offset(skip)
+            .limit(limit)
+        )
+        result = await self._session.execute(stmt)
+        return list(result.scalars().all())
+
+    async def count_saved_by_user(self, user_id: uuid.UUID) -> int:
+        stmt = (
+            select(func.count())
+            .select_from(SavedJob)
+            .where(SavedJob.user_id == user_id)
+        )
+        result = await self._session.execute(stmt)
+        return result.scalar_one()
+
+    async def save_job(self, user_id: uuid.UUID, job_id: uuid.UUID) -> SavedJob:
+        return await self.create(
+            user_id=user_id,
+            job_id=job_id,
+            saved_at=datetime.now(timezone.utc),
+        )
+
+    async def unsave_job(self, user_id: uuid.UUID, job_id: uuid.UUID) -> bool:
+        saved = await self.get_by_user_and_job(user_id, job_id)
+        if saved is None:
+            return False
+        await self.delete(saved.id)
+        return True
+
+========================================
+FILE PATH: src/services/bot_session_service.py
+========================================
+
+import json
+import logging
+from datetime import datetime, timezone
+from typing import Any
+
+import redis.asyncio as aioredis
+
+from config.settings import get_settings
+
+logger = logging.getLogger(__name__)
+
+SESSION_PREFIX = "bot_session:"
+SESSION_TTL = 600
+
+
+class BotSessionService:
+    def __init__(self) -> None:
+        self._redis: aioredis.Redis | None = None
+
+    def _get_redis(self) -> aioredis.Redis:
+        if self._redis is None:
+            settings = get_settings()
+            self._redis = aioredis.from_url(
+                settings.redis.redis_url, decode_responses=True
+            )
+        return self._redis
+
+    def _key(self, user_id: int) -> str:
+        return f"{SESSION_PREFIX}{user_id}"
+
+    async def get_session(self, user_id: int) -> dict[str, Any] | None:
+        try:
+            redis = self._get_redis()
+            data = await redis.get(self._key(user_id))
+            if data is None:
+                return None
+            return json.loads(data)
+        except Exception:
+            logger.exception("Failed to get session for user %s", user_id)
+            return None
+
+    async def set_session(
+        self, user_id: int, state: str, flow_data: dict[str, Any] | None = None
+    ) -> None:
+        try:
+            redis = self._get_redis()
+            session_data = {
+                "user_id": user_id,
+                "current_state": state,
+                "last_activity": datetime.now(timezone.utc).isoformat(),
+                "flow_data": flow_data or {},
+            }
+            await redis.set(
+                self._key(user_id), json.dumps(session_data), ex=SESSION_TTL
+            )
+        except Exception:
+            logger.exception("Failed to set session for user %s", user_id)
+
+    async def update_activity(self, user_id: int) -> None:
+        session = await self.get_session(user_id)
+        if session:
+            await self.set_session(
+                user_id, session["current_state"], session.get("flow_data")
+            )
+
+    async def clear_session(self, user_id: int) -> None:
+        try:
+            redis = self._get_redis()
+            await redis.delete(self._key(user_id))
+        except Exception:
+            logger.exception("Failed to clear session for user %s", user_id)
+
+    async def is_expired(self, user_id: int) -> bool:
+        session = await self.get_session(user_id)
+        if session is None:
+            return True
+        last_activity = datetime.fromisoformat(session["last_activity"])
+        elapsed = (datetime.now(timezone.utc) - last_activity).total_seconds()
+        return elapsed > SESSION_TTL
+
+    async def cleanup_expired_sessions(self) -> int:
+        try:
+            redis = self._get_redis()
+            pattern = f"{SESSION_PREFIX}*"
+            keys = []
+            async for key in redis.scan_iter(match=pattern):
+                keys.append(key)
+            cleaned = 0
+            for key in keys:
+                data = await redis.get(key)
+                if data:
+                    session = json.loads(data)
+                    last_activity = datetime.fromisoformat(session["last_activity"])
+                    elapsed = (
+                        datetime.now(timezone.utc) - last_activity
+                    ).total_seconds()
+                    if elapsed > 900:
+                        await redis.delete(key)
+                        cleaned += 1
+            return cleaned
+        except Exception:
+            logger.exception("Failed to cleanup expired sessions")
+            return 0
+
+========================================
+FILE PATH: src/services/saved_job_service.py
+========================================
+
+import logging
+import uuid
+
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from src.models.saved_job import SavedJob
+from src.repositories.saved_job_repository import SavedJobRepository
+
+logger = logging.getLogger(__name__)
+
+
+class SavedJobService:
+    def __init__(self, session: AsyncSession) -> None:
+        self._session = session
+        self._repo = SavedJobRepository(session)
+
+    async def save(self, user_id: uuid.UUID, job_id: uuid.UUID) -> SavedJob:
+        existing = await self._repo.get_by_user_and_job(user_id, job_id)
+        if existing:
+            return existing
+        saved = await self._repo.save_job(user_id, job_id)
+        logger.info("Job saved user=%s job=%s", user_id, job_id)
+        return saved
+
+    async def unsave(self, user_id: uuid.UUID, job_id: uuid.UUID) -> bool:
+        result = await self._repo.unsave_job(user_id, job_id)
+        if result:
+            logger.info("Job unsaved user=%s job=%s", user_id, job_id)
+        return result
+
+    async def is_saved(self, user_id: uuid.UUID, job_id: uuid.UUID) -> bool:
+        return await self._repo.get_by_user_and_job(user_id, job_id) is not None
+
+    async def get_saved_jobs(
+        self,
+        user_id: uuid.UUID,
+        skip: int = 0,
+        limit: int = 5,
+    ) -> list[SavedJob]:
+        return await self._repo.get_saved_by_user(user_id, skip=skip, limit=limit)
+
+    async def count_saved(self, user_id: uuid.UUID) -> int:
+        return await self._repo.count_saved_by_user(user_id)
+
+========================================
+FILE PATH: tests/integration/test_cv_upload_flow.py
+========================================
+
+import uuid
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
+
+def _mock_session_gen():
+    mock_session = AsyncMock()
+    mock_session.commit = AsyncMock()
+
+    async def gen():
+        yield mock_session
+
+    return gen, mock_session
+
+
+@pytest.mark.asyncio
+async def test_cv_upload_flow_valid_file():
+    user = MagicMock()
+    user.id = uuid.uuid4()
+    user.subscription_tier = "free"
+
+    gen, mock_session = _mock_session_gen()
+    repo_instance = AsyncMock()
+    repo_instance.get_by_telegram_id = AsyncMock(return_value=user)
+
+    with (
+        patch("src.database.get_async_session", gen),
+        patch(
+            "src.repositories.user_repository.UserRepository",
+            return_value=repo_instance,
+        ),
+    ):
+        from aiogram.fsm.context import FSMContext
+        from aiogram.fsm.storage.memory import MemoryStorage
+
+        state = FSMContext(storage=MemoryStorage(), key=MagicMock(user_id=123))
+
+        from src.bot.handlers.cv_upload import cmd_upload_cv
+
+        message = MagicMock()
+        message.text = "/upload_cv"
+        message.from_user = MagicMock()
+        message.from_user.id = 123
+        message.from_user.language_code = "ar"
+        message.answer = AsyncMock()
+
+        await cmd_upload_cv(message, state)
+        assert message.answer.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_cv_upload_rejects_invalid_format():
+    message = MagicMock()
+    message.document = MagicMock()
+    message.document.file_name = "photo.jpg"
+    message.document.file_size = 1000
+    message.from_user = MagicMock()
+    message.from_user.id = 123
+    message.from_user.language_code = "ar"
+    message.answer = AsyncMock()
+
+    from aiogram.fsm.context import FSMContext
+    from aiogram.fsm.storage.memory import MemoryStorage
+    from src.bot.states import CVUploadState
+
+    state = FSMContext(storage=MemoryStorage(), key=MagicMock(user_id=123))
+    await state.set_state(CVUploadState.waiting_for_file)
+
+    from src.bot.handlers.cv_upload import handle_cv_file
+
+    await handle_cv_file(message, state)
+
+    message.answer.assert_called()
+
+
+@pytest.mark.asyncio
+async def test_cv_upload_rejects_oversized_file():
+    message = MagicMock()
+    message.document = MagicMock()
+    message.document.file_name = "big_cv.pdf"
+    message.document.file_size = 10 * 1024 * 1024
+    message.from_user = MagicMock()
+    message.from_user.id = 123
+    message.from_user.language_code = "ar"
+    message.answer = AsyncMock()
+
+    from aiogram.fsm.context import FSMContext
+    from aiogram.fsm.storage.memory import MemoryStorage
+    from src.bot.states import CVUploadState
+
+    state = FSMContext(storage=MemoryStorage(), key=MagicMock(user_id=123))
+    await state.set_state(CVUploadState.waiting_for_file)
+
+    from src.bot.handlers.cv_upload import handle_cv_file
+
+    await handle_cv_file(message, state)
+
+    assert message.answer.call_count >= 1
+    text = message.answer.call_args[0][0]
+    assert "5MB" in text or "كبير" in text
+
+========================================
+FILE PATH: tests/integration/test_filter_persistence.py
+========================================
+
+import uuid
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
+from src.bot.handlers.saved_jobs import _relative_time
+
+
+def test_relative_time_now():
+    from datetime import datetime, timezone
+
+    result = _relative_time(datetime.now(timezone.utc))
+    assert "الآن" in result or "now" in result
+
+
+def test_relative_time_minutes():
+    from datetime import datetime, timezone, timedelta
+
+    dt = datetime.now(timezone.utc) - timedelta(minutes=30)
+    result = _relative_time(dt)
+    assert "30" in result
+
+
+def test_relative_time_hours():
+    from datetime import datetime, timezone, timedelta
+
+    dt = datetime.now(timezone.utc) - timedelta(hours=5)
+    result = _relative_time(dt)
+    assert "5" in result
+
+
+def test_relative_time_days():
+    from datetime import datetime, timezone, timedelta
+
+    dt = datetime.now(timezone.utc) - timedelta(days=3)
+    result = _relative_time(dt)
+    assert "3" in result
+
+
+def test_relative_time_none():
+    result = _relative_time(None)
+    assert result == ""
+
+
+def _mock_session_gen():
+    mock_session = AsyncMock()
+    mock_session.commit = AsyncMock()
+
+    async def gen():
+        yield mock_session
+
+    return gen, mock_session
+
+
+@pytest.mark.asyncio
+async def test_my_jobs_not_registered():
+    gen, mock_session = _mock_session_gen()
+    repo_instance = AsyncMock()
+    repo_instance.get_by_telegram_id = AsyncMock(return_value=None)
+
+    message = MagicMock()
+    message.text = "/my_jobs"
+    message.from_user = MagicMock()
+    message.from_user.id = 999
+    message.from_user.language_code = "ar"
+    message.answer = AsyncMock()
+
+    with (
+        patch("src.database.get_async_session", gen),
+        patch(
+            "src.repositories.user_repository.UserRepository",
+            return_value=repo_instance,
+        ),
+    ):
+        from aiogram.fsm.context import FSMContext
+        from aiogram.fsm.storage.memory import MemoryStorage
+
+        state = FSMContext(storage=MemoryStorage(), key=MagicMock(user_id=999))
+
+        from src.bot.handlers.saved_jobs import cmd_my_jobs
+
+        await cmd_my_jobs(message, state)
+
+        message.answer.assert_called_once()
+        text = message.answer.call_args[0][0]
+        assert "/start" in text
+
+========================================
+FILE PATH: tests/integration/test_job_notification_flow.py
+========================================
+
+import uuid
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
+
+def _mock_session_gen():
+    mock_session = AsyncMock()
+    mock_session.commit = AsyncMock()
+
+    async def gen():
+        yield mock_session
+
+    return gen, mock_session
+
+
+@pytest.mark.asyncio
+async def test_save_job_callback():
+    job_id = uuid.uuid4()
+    user_id = uuid.uuid4()
+
+    callback = MagicMock()
+    callback.data = f"save_job:{job_id}"
+    callback.from_user = MagicMock()
+    callback.from_user.id = 123
+    callback.answer = AsyncMock()
+
+    user = MagicMock()
+    user.id = user_id
+
+    gen, mock_session = _mock_session_gen()
+    repo_instance = AsyncMock()
+    repo_instance.get_by_telegram_id = AsyncMock(return_value=user)
+
+    svc_instance = AsyncMock()
+    svc_instance.is_saved = AsyncMock(return_value=False)
+    svc_instance.save = AsyncMock()
+
+    with (
+        patch("src.database.get_async_session", gen),
+        patch(
+            "src.repositories.user_repository.UserRepository",
+            return_value=repo_instance,
+        ),
+        patch(
+            "src.services.saved_job_service.SavedJobService", return_value=svc_instance
+        ),
+    ):
+        from src.bot.handlers.job_notifications import callback_save_job
+
+        await callback_save_job(callback)
+
+        svc_instance.save.assert_called_once_with(user_id, job_id)
+        callback.answer.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_save_job_already_saved():
+    job_id = uuid.uuid4()
+
+    callback = MagicMock()
+    callback.data = f"save_job:{job_id}"
+    callback.from_user = MagicMock()
+    callback.from_user.id = 123
+    callback.answer = AsyncMock()
+
+    user = MagicMock()
+    user.id = uuid.uuid4()
+
+    gen, mock_session = _mock_session_gen()
+    repo_instance = AsyncMock()
+    repo_instance.get_by_telegram_id = AsyncMock(return_value=user)
+
+    svc_instance = AsyncMock()
+    svc_instance.is_saved = AsyncMock(return_value=True)
+
+    with (
+        patch("src.database.get_async_session", gen),
+        patch(
+            "src.repositories.user_repository.UserRepository",
+            return_value=repo_instance,
+        ),
+        patch(
+            "src.services.saved_job_service.SavedJobService", return_value=svc_instance
+        ),
+    ):
+        from src.bot.handlers.job_notifications import callback_save_job
+
+        await callback_save_job(callback)
+
+        svc_instance.save.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_dismiss_match_callback():
+    match_id = uuid.uuid4()
+
+    callback = MagicMock()
+    callback.data = f"dismiss_match:{match_id}"
+    callback.from_user = MagicMock()
+    callback.answer = AsyncMock()
+    callback.message = MagicMock()
+    callback.message.delete = AsyncMock()
+
+    gen, mock_session = _mock_session_gen()
+    match = MagicMock()
+    match.id = match_id
+
+    repo_instance = AsyncMock()
+    repo_instance.get = AsyncMock(return_value=match)
+    repo_instance.update = AsyncMock()
+
+    with (
+        patch("src.database.get_async_session", gen),
+        patch(
+            "src.repositories.match_repository.MatchRepository",
+            return_value=repo_instance,
+        ),
+    ):
+        from src.bot.handlers.job_notifications import callback_dismiss_match
+
+        await callback_dismiss_match(callback)
+
+        repo_instance.update.assert_called_once_with(match_id, is_dismissed=True)
+
+========================================
+FILE PATH: tests/integration/test_performance.py
+========================================
+
+import time
+import uuid
+from datetime import datetime, timezone
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
+from src.services.bot_session_service import BotSessionService
+
+
+def _mock_session_gen():
+    mock_session = AsyncMock()
+    mock_session.commit = AsyncMock()
+
+    async def gen():
+        yield mock_session
+
+    return gen, mock_session
+
+
+@pytest.mark.asyncio
+async def test_registration_response_time():
+    start = time.monotonic()
+
+    user = MagicMock()
+    user.first_name = "Test"
+    user.subscription_tier = "free"
+
+    gen, mock_session = _mock_session_gen()
+    repo_instance = AsyncMock()
+    repo_instance.get_by_telegram_id = AsyncMock(return_value=user)
+
+    message = MagicMock()
+    message.text = "/start"
+    message.from_user = MagicMock()
+    message.from_user.id = 123
+    message.from_user.first_name = "Test"
+    message.from_user.language_code = "ar"
+    message.answer = AsyncMock()
+
+    with (
+        patch("src.database.get_async_session", gen),
+        patch(
+            "src.repositories.user_repository.UserRepository",
+            return_value=repo_instance,
+        ),
+    ):
+        from aiogram.fsm.context import FSMContext
+        from aiogram.fsm.storage.memory import MemoryStorage
+
+        state = FSMContext(storage=MemoryStorage(), key=MagicMock(user_id=123))
+
+        from src.bot.handlers.registration import cmd_start
+
+        await cmd_start(message, state)
+
+    elapsed = time.monotonic() - start
+    assert elapsed < 2.0, f"Registration took {elapsed:.2f}s, expected < 2s (SC-001)"
+
+
+@pytest.mark.asyncio
+async def test_session_expiry_within_threshold():
+    svc = BotSessionService()
+    mock_redis = AsyncMock()
+
+    old_time = datetime(2026, 4, 16, 10, 0, 0, tzinfo=timezone.utc).isoformat()
+    mock_redis.get = AsyncMock(
+        return_value=f'{{"last_activity": "{old_time}", "current_state": "test", "flow_data": {{}}}}'
+    )
+    svc._redis = mock_redis
+
+    assert await svc.is_expired(123) is True
+
+
+@pytest.mark.asyncio
+async def test_button_response_time():
+    start = time.monotonic()
+
+    job_id = uuid.uuid4()
+    user_id = uuid.uuid4()
+
+    callback = MagicMock()
+    callback.data = f"save_job:{job_id}"
+    callback.from_user = MagicMock()
+    callback.from_user.id = 123
+    callback.answer = AsyncMock()
+
+    user = MagicMock()
+    user.id = user_id
+
+    gen, mock_session = _mock_session_gen()
+    repo_instance = AsyncMock()
+    repo_instance.get_by_telegram_id = AsyncMock(return_value=user)
+
+    svc_instance = AsyncMock()
+    svc_instance.is_saved = AsyncMock(return_value=False)
+    svc_instance.save = AsyncMock()
+
+    with (
+        patch("src.database.get_async_session", gen),
+        patch(
+            "src.repositories.user_repository.UserRepository",
+            return_value=repo_instance,
+        ),
+        patch(
+            "src.services.saved_job_service.SavedJobService", return_value=svc_instance
+        ),
+    ):
+        from src.bot.handlers.job_notifications import callback_save_job
+
+        await callback_save_job(callback)
+
+    elapsed = time.monotonic() - start
+    assert elapsed < 0.5, (
+        f"Button response took {elapsed:.3f}s, expected < 500ms (SC-006)"
+    )
+
+========================================
+FILE PATH: tests/integration/test_registration_flow.py
+========================================
+
+import uuid
+from unittest.mock import AsyncMock, MagicMock, patch
+
+import pytest
+
+
+def _mock_session_gen():
+    mock_session = AsyncMock()
+    mock_session.commit = AsyncMock()
+
+    async def gen():
+        yield mock_session
+
+    return gen, mock_session
+
+
+@pytest.mark.asyncio
+async def test_full_registration_flow_new_user():
+    new_user = MagicMock()
+    new_user.first_name = "Ahmad"
+    new_user.subscription_tier = "free"
+    new_user.referral_code = "ABC12345"
+
+    gen, mock_session = _mock_session_gen()
+    repo_instance = AsyncMock()
+    repo_instance.get_by_telegram_id = AsyncMock(return_value=None)
+    repo_instance.create_user = AsyncMock(return_value=new_user)
+
+    message = MagicMock()
+    message.text = "/start"
+    message.from_user = MagicMock()
+    message.from_user.id = 111222333
+    message.from_user.first_name = "Ahmad"
+    message.from_user.last_name = "Test"
+    message.from_user.username = "ahmad_test"
+    message.from_user.language_code = "ar"
+    message.answer = AsyncMock()
+
+    with (
+        patch("src.database.get_async_session", gen),
+        patch(
+            "src.repositories.user_repository.UserRepository",
+            return_value=repo_instance,
+        ),
+    ):
+        from aiogram.fsm.context import FSMContext
+        from aiogram.fsm.storage.memory import MemoryStorage
+
+        state = FSMContext(storage=MemoryStorage(), key=MagicMock(user_id=111222333))
+
+        from src.bot.handlers.registration import cmd_start
+
+        await cmd_start(message, state)
+
+        repo_instance.create_user.assert_called_once_with(
+            telegram_id=111222333,
+            first_name="Ahmad",
+            last_name="Test",
+            username="ahmad_test",
+            referred_by=None,
+        )
+        message.answer.assert_called_once()
+        assert message.answer.call_args[1].get("reply_markup") is not None
+
+
+@pytest.mark.asyncio
+async def test_registration_with_referral_tracking():
+    referrer_id = uuid.uuid4()
+    referrer = MagicMock()
+    referrer.id = referrer_id
+
+    new_user = MagicMock()
+    new_user.first_name = "Referred"
+    new_user.subscription_tier = "free"
+    new_user.referral_code = "XYZ98765"
+
+    gen, mock_session = _mock_session_gen()
+    repo_instance = AsyncMock()
+    repo_instance.get_by_telegram_id = AsyncMock(return_value=None)
+    repo_instance.get_by_referral_code = AsyncMock(return_value=referrer)
+    repo_instance.create_user = AsyncMock(return_value=new_user)
+
+    message = MagicMock()
+    message.text = "/start ref_ABC12345"
+    message.from_user = MagicMock()
+    message.from_user.id = 444555666
+    message.from_user.first_name = "Referred"
+    message.from_user.last_name = None
+    message.from_user.username = None
+    message.from_user.language_code = "ar"
+    message.answer = AsyncMock()
+
+    with (
+        patch("src.database.get_async_session", gen),
+        patch(
+            "src.repositories.user_repository.UserRepository",
+            return_value=repo_instance,
+        ),
+    ):
+        from aiogram.fsm.context import FSMContext
+        from aiogram.fsm.storage.memory import MemoryStorage
+
+        state = FSMContext(storage=MemoryStorage(), key=MagicMock(user_id=444555666))
+
+        from src.bot.handlers.registration import cmd_start
+
+        await cmd_start(message, state)
+
+        create_kwargs = repo_instance.create_user.call_args[1]
+        assert create_kwargs["referred_by"] == referrer_id
+
+
+@pytest.mark.asyncio
+async def test_help_displays_all_commands():
+    message = MagicMock()
+    message.text = "/help"
+    message.from_user = MagicMock()
+    message.from_user.language_code = "ar"
+    message.answer = AsyncMock()
+
+    from src.bot.handlers.registration import cmd_help
+
+    await cmd_help(message)
+
+    help_text = message.answer.call_args[0][0]
+    for cmd in [
+        "/start",
+        "/upload_cv",
+        "/my_cvs",
+        "/my_jobs",
+        "/settings",
+        "/invite",
+        "/subscribe",
+        "/cancel",
+    ]:
+        assert cmd in help_text

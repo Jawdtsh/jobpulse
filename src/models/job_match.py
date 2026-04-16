@@ -39,6 +39,7 @@ class JobMatch(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     notified_at: Mapped[datetime | None] = mapped_column(nullable=True)
     is_clicked: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     clicked_at: Mapped[datetime | None] = mapped_column(nullable=True)
+    is_dismissed: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     job: Mapped["Job"] = relationship("Job", back_populates="matches")
     user: Mapped["User"] = relationship("User", back_populates="job_matches")
