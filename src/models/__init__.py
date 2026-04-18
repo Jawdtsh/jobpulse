@@ -14,6 +14,8 @@ from src.models.user import User
 from src.models.user_cv import UserCV
 from src.models.user_interaction import UserInteraction
 from src.models.user_preferences import UserPreferences
+from src.models.saved_job import SavedJob
+from src.models.language import Language
 
 __all__ = [
     "ArchivedJob",
@@ -33,4 +35,6 @@ __all__ = [
     "UserCV",
     "UserInteraction",
     "UserPreferences",
+    "SavedJob",
+    "Language",
 ]

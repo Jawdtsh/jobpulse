@@ -1,0 +1,166 @@
+{
+    "welcome": {
+        "ar": "مرحباً بك في JobPulse! 👋\n\nاسمك: {first_name}\nخطتك: {tier}",
+        "en": "Welcome to JobPulse! 👋\n\nYour name: {first_name}\nYour plan: {tier}"
+    },
+    "welcome_back": {
+        "ar": "مرحباً بعودتك! 👋\nاسمك: {first_name}\nخطتك: {tier}",
+        "en": "Welcome back! 👋\nYour name: {first_name}\nYour plan: {tier}"
+    },
+    "help": {
+        "ar": "📋 المساعدة\n\n/start - ابدأ الآن\n/upload_cv - ارفع سيرتك الذاتية\n/my_cvs - سيرتي الذاتية\n/my_jobs - الوظائف المحفوظة\n/settings - الإعدادات\n/invite - دعوة صديق\n/subscribe - الخطط والاشتراكات\n/cancel - إلغاء",
+        "en": "📋 Help\n\n/start - Start\n/upload_cv - Upload CV\n/my_cvs - My CVs\n/my_jobs - Saved Jobs\n/settings - Settings\n/invite - Invite Friend\n/subscribe - Plans\n/cancel - Cancel"
+    },
+    "upload_prompt": {
+        "ar": "📄 ارفع سيرتك الذاتية\n\n• التنسيقات المدعومة: PDF, DOCX, TXT\n• الحجم الأقصى: 5MB\n\nأرسل الملف الآن",
+        "en": "📄 Upload your CV\n\n• Supported formats: PDF, DOCX, TXT\n• Max size: 5MB\n\nSend the file now"
+    },
+    "upload_processing": {
+        "ar": "⏳ جاري المعالجة...",
+        "en": "⏳ Processing..."
+    },
+    "upload_success": {
+        "ar": "✅ تم رفع وتقييم سيرتك الذاتية بنجاح!\n\nالنتيجة: {score}%\n{summary}",
+        "en": "✅ CV uploaded and evaluated successfully!\n\nScore: {score}%\n{summary}"
+    },
+    "upload_error_format": {
+        "ar": "❌ التنسيق غير مدعوم. أرسل PDF، DOCX، أو TXT.",
+        "en": "❌ Format not supported. Send PDF, DOCX, or TXT."
+    },
+    "upload_error_size": {
+        "ar": "❌ الملف كبير جداً (الأقصى 5MB).",
+        "en": "❌ File too large, max 5MB."
+    },
+    "upload_error_limit": {
+        "ar": "❌ وصلت للحد الأقصى من السير الذاتية لخطتك.",
+        "en": "❌ You've reached the CV limit for your plan."
+    },
+    "replace_prompt": {
+        "ar": "⚠️ لديك سيرة ذاتية نشطة بالفعل. هل تريد استبدالها؟",
+        "en": "⚠️ You already have an active CV. Do you want to replace it?"
+    },
+    "cv_activated": {
+        "ar": "✅ تم تفعيل السيرة الذاتية!",
+        "en": "✅ CV activated!"
+    },
+    "cv_deleted": {
+        "ar": "✅ تم حذف السيرة الذاتية.",
+        "en": "✅ CV deleted."
+    },
+    "cv_delete_confirm": {
+        "ar": "⚠️ هل أنت متأكد من حذف هذه السيرة الذاتية؟",
+        "en": "⚠️ Are you sure you want to delete this CV?"
+    },
+    "cv_no_active_prompt": {
+        "ar": "⚠️ لا توجد سيرة ذاتية نشطة. سيتم إيقاف مطابقة الوظائف.",
+        "en": "⚠️ No active CV. Job matching will be paused."
+    },
+    "cv_activate_replacement": {
+        "ar": "هل تريد تفعيل سيرة ذاتية أخرى؟",
+        "en": "Do you want to activate another CV?"
+    },
+    "job_saved": {
+        "ar": "✅ تم الحفظ! شاهد في /my_jobs",
+        "en": "✅ Saved! View in /my_jobs"
+    },
+    "job_already_saved": {
+        "ar": "تم حفظه بالفعل",
+        "en": "Already saved"
+    },
+    "job_dismissed": {
+        "ar": "تم التجاهل",
+        "en": "Dismissed"
+    },
+    "job_unsaved": {
+        "ar": "✅ تم إلغاء الحفظ",
+        "en": "✅ Unsaved"
+    },
+    "job_notification": {
+        "ar": "🎯 {title}\n🏢 {company}\n📍 {location}\n💰 {salary}\n📊 نسبة التطابق: {match_percent}%\n\n{preview}",
+        "en": "🎯 {title}\n🏢 {company}\n📍 {location}\n💰 {salary}\n📊 Match: {match_percent}%\n\n{preview}"
+    },
+    "job_details": {
+        "ar": "🏢 {company}\n📍 {location}\n💰 {salary}\n📊 {match_percent}%\n\n{description}\n\n🔗 المصدر:",
+        "en": "🏢 {company}\n📍 {location}\n💰 {salary}\n📊 {match_percent}%\n\n{description}\n\n🔗 Source:"
+    },
+    "no_jobs": {
+        "ar": "📭 لا توجد وظائف.",
+        "en": "📭 No jobs found."
+    },
+    "no_cvs": {
+        "ar": "لا توجد سير ذاتية مرفوعة بعد. ارفع سيرتك الأولى! 📄",
+        "en": "No CVs uploaded yet. Upload your first one! 📄"
+    },
+    "cv_list_header": {
+        "ar": "سيرتي الذاتية",
+        "en": "My CVs"
+    },
+    "settings_display": {
+        "ar": "⚙️ الإعدادات\n\n• نسبة التطابق: {threshold}%\n• الإشعارات: {notifications}\n• اللغة: {language}\n• الخطة: {tier}\n• رمز الإحالة: {referral_code}",
+        "en": "⚙️ Settings\n\n• Match Threshold: {threshold}%\n• Notifications: {notifications}\n• Language: {language}\n• Plan: {tier}\n• Referral Code: {referral_code}"
+    },
+    "threshold_set": {
+        "ar": "✅ تم تحديث نسبة التطابق إلى {value}%",
+        "en": "✅ Match threshold updated to {value}%"
+    },
+    "notifications_on": {
+        "ar": "🔔 تم تفعيل الإشعارات",
+        "en": "🔔 Notifications enabled"
+    },
+    "notifications_off": {
+        "ar": "🔕 تم إيقاف الإشعارات",
+        "en": "🔕 Notifications disabled"
+    },
+    "referral_title": {
+        "ar": "🎁 دعوة صديق\n\nمشاركة الرابط:\n{link}\n\nكل 5 تسجيلات ناجحة = شهر مجاني من Basic!",
+        "en": "🎁 Invite a Friend\n\nShare Link:\n{link}\n\n5 successful registrations = 1 free Basic month!"
+    },
+    "referral_stats": {
+        "ar": "📊 الإحصائيات: {total} مدعوون، {registered} مسجلون",
+        "en": "📊 Stats: {total} invited, {registered} registered"
+    },
+    "referral_code": {
+        "ar": "رمز الإحالة: {code}",
+        "en": "Referral Code: {code}"
+    },
+    "subscribe_title": {
+        "ar": "💳 الخطط والاشتراكات\n\n📌 خطتك الحالية: {current_tier}",
+        "en": "💳 Subscription Plans\n\n📌 Current plan: {current_tier}"
+    },
+    "subscribe_free": {
+        "ar": "🆓 Free\n• سير ذاتية: 1\n• تأخير الإشعارات: 24 ساعة\n• خطابات الغلاف: 0",
+        "en": "🆓 Free\n• CVs: 1\n• Notification delay: 24h\n• Cover letters: 0"
+    },
+    "subscribe_basic": {
+        "ar": "🥉 Basic - $7/شهر\n• سير ذاتية: 1\n• تأخير الإشعارات: 12 ساعة\n• خطابات الغلاف: 5",
+        "en": "🥉 Basic - $7/mo\n• CVs: 1\n• Notification delay: 12h\n• Cover letters: 5"
+    },
+    "subscribe_pro": {
+        "ar": "🥇 Pro - $12/شهر\n• سير ذاتية: 2\n• تأخير الإشعارات: فوري\n• خطابات الغلاف: غير محدود",
+        "en": "🥇 Pro - $12/mo\n• CVs: 2\n• Notification delay: Instant\n• Cover letters: Unlimited"
+    },
+    "error_generic": {
+        "ar": "❌ حدث خطأ. حاول لاحقاً.",
+        "en": "❌ An error occurred. Please try again."
+    },
+    "error_session_expired": {
+        "ar": "⏰ انتهت الجلسة. /start",
+        "en": "⏰ Session expired. /start"
+    },
+    "cancel": {
+        "ar": "✅ تم الإلغاء.",
+        "en": "✅ Cancelled."
+    },
+    "not_registered": {
+        "ar": "أنت غير مسجل. استخدم /start أولاً.",
+        "en": "You are not registered. Use /start first."
+    },
+    "coming_soon": {
+        "ar": "قيد التطوير",
+        "en": "Coming soon"
+    },
+    "job_matching_paused": {
+        "ar": "⏸️ مطابقة الوظائف متوقفة - لا توجد سيرة ذاتية نشطة.",
+        "en": "⏸️ Job matching paused - no active CV."
+    }
+}

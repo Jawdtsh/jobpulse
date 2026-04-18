@@ -16,6 +16,8 @@ build/
 venv/
 logs/
 *.log
+coverage/
+.ruff_cache/
 .DS_Store
 Thumbs.db
 *.tmp

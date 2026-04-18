@@ -12,6 +12,7 @@ from src.repositories.spam_rule_repository import SpamRuleRepository
 from src.repositories.subscription_repository import SubscriptionRepository
 from src.repositories.telegram_session_repository import TelegramSessionRepository
 from src.repositories.user_repository import UserRepository
+from src.repositories.saved_job_repository import SavedJobRepository
 
 __all__ = [
     "ArchivedJobRepository",
@@ -28,4 +29,5 @@ __all__ = [
     "SubscriptionRepository",
     "TelegramSessionRepository",
     "UserRepository",
+    "SavedJobRepository",
 ]

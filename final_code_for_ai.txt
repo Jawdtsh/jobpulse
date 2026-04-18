@@ -1,0 +1,1893 @@
+
+========================================
+FILE PATH: specs/007-bot-handlers-ux/checklists/requirements.md
+========================================
+
+# Specification Quality Checklist: Bot Handlers & UX Flow
+
+**Purpose**: Validate specification completeness and quality before proceeding to planning
+**Created**: 2026-04-13
+**Feature**: [spec.md](../spec.md)
+
+## Content Quality
+
+- [x] No implementation details (languages, frameworks, APIs)
+- [x] Focused on user value and business needs
+- [x] Written for non-technical stakeholders
+- [x] All mandatory sections completed
+
+## Requirement Completeness
+
+- [x] No [NEEDS CLARIFICATION] markers remain
+- [x] Requirements are testable and unambiguous
+- [x] Success criteria are measurable
+- [x] Success criteria are technology-agnostic (no implementation details)
+- [x] All acceptance scenarios are defined
+- [x] Edge cases are identified
+- [x] Scope is clearly bounded
+- [x] Dependencies and assumptions identified
+
+## Feature Readiness
+
+- [x] All functional requirements have clear acceptance criteria
+- [x] User scenarios cover primary flows
+- [x] Feature meets measurable outcomes defined in Success Criteria
+- [x] No implementation details leak into specification
+
+## Notes
+
+- All items pass validation. The spec is ready for `/speckit.clarify` or `/speckit.plan`.
+- Implementation-specific details (aiogram, Python, SQLAlchemy, Redis, etc.) from the original input were removed to maintain technology-agnostic spec quality.
+- Cover letter and payment processing buttons are explicitly noted as deferred to future specifications.
+
+========================================
+FILE PATH: specs/007-bot-handlers-ux/contracts/bot-commands.md
+========================================
+
+# Bot Commands Contract
+
+**Feature Branch**: `007-bot-handlers-ux`  
+**Date**: 2026-04-16
+
+## Commands
+
+### /start
+
+**Description**: Register new user or welcome existing user  
+**Parameters**: Optional `ref_{code}` parameter for referral tracking  
+**Response**: Welcome message with main menu buttons  
+
+**Flow**:
+1. Check if user exists by telegram_id
+2. If new: create user record with auto-detected language, Free tier, unique referral code
+3. If referral param provided: credit referring user
+4. Display welcome message with main menu
+
+**Response Format**:
+```
+مرحباً بك في JobPulse! 👋
+اسمك: {first_name}
+خطتك: {tier}
+
+[Upload CV] [My Jobs] [Invite Friends] [Settings]
+```
+
+---
+
+### /help
+
+**Description**: Show all available commands with descriptions  
+**Response**: List of commands and descriptions  
+
+**Response Format**:
+```
+📋 المساعدة (Help)
+
+/start - ابدأ الآن (Start)
+/upload_cv - ارفع سيرتك الذاتية (Upload CV)
+/my_cvs - سيرتي الذاتية (My CVs)
+/my_jobs - الوظائف المحفوظة (Saved Jobs)
+/settings - الإعدادات (Settings)
+/invite - دعوة صديق (Invite Friend)
+/subscribe - الخطط والاشتراكات (Plans)
+/cancel - إلغاء (Cancel)
+```
+
+---
+
+### /upload_cv
+
+**Description**: Start CV upload flow  
+**Parameters**: None  
+**Response**: Prompt to send a file  
+
+**Flow**:
+1. Enter FSM state `CVUploadState.waiting_for_file`
+2. Display upload prompt
+3. Wait for file upload
+
+**Response Format**:
+```
+📄 ارفع سيرتك الذاتية (Upload your CV)
+
+• التنسيقات المدعومة: PDF, DOCX, TXT
+• الحجم الأقصى: 5MB
+
+أرسل الملف الآن (Send the file now)
+```
+
+---
+
+### /my_cvs
+
+**Description**: List all user CVs with status and actions  
+**Parameters**: None  
+**Response**: List of CV cards with delete buttons  
+
+**Response Format**:
+```
+📁 سيرتي الذاتية (My CVs)
+
+1. CV1.pdf - نشط (Active) - 85% - 2026-04-10
+[Delete]
+
+2. CV2.docx - غير نشط (Inactive) - 60% - 2026-04-05
+[Delete]
+
+[Upload New CV]
+```
+
+---
+
+### /my_jobs
+
+**Description**: Browse saved jobs, all notified, or dismissed  
+**Parameters**: Optional view filter  
+**Response**: Job list with pagination and filters  
+
+**Flow**:
+1. Display view selector: Saved | All Notified | Dismissed
+2. Default to Saved view
+3. Show filters: Similarity (>80%, >70%, All), Date (7d, 14d, 30d)
+4. Paginate at 5 jobs per page
+
+**Response Format**:
+```
+💼 وظائف محفوظة (Saved Jobs) - صفحة 1/3
+
+[View: Saved | All | Dismissed]
+
+1. Senior Developer @ TechCorp - 92% - منذ 3 ساعات (3h ago)
+[View] [Cover Letter] [Unsave]
+
+2. Backend Engineer @ StartupXYZ - 87% - منذ يوم (1d ago)
+[View] [Cover Letter] [Unsave]
+
+[Prev] 1/3 [Next]
+
+[Filter: >80%] [Filter: 7 days]
+```
+
+---
+
+### /settings
+
+**Description**: View and edit user preferences  
+**Parameters**: None  
+**Response**: Settings display with edit options  
+
+**Response Format**:
+```
+⚙️ الإعدادات (Settings)
+
+• نسبة التطابق: 80% (Match Threshold)
+  [60%] [70%] [80%] [90%] [100%]
+
+• الإشعارات: ✅ مفعل (Enabled)
+
+• اللغة: العربية (Arabic)
+
+• الخطة: Free (Current Plan)
+  [Upgrade to Basic] [Upgrade to Pro]
+
+• رمز الإحالة: ABC123XYZ (Referral Code)
+  [Copy] [Share]
+
+📊 الإحصائيات: 5 مدعوون، 2 مسجلون (Stats: 5 invited, 2 registered)
+```
+
+---
+
+### /invite
+
+**Description**: Open referral interface with shareable link  
+**Parameters**: None  
+**Response**: Referral link with share options  
+
+**Response Format**:
+```
+🎁 دعوة صديق (Invite a Friend)
+
+مشاركة الرابط (Share Link):
+https://t.me/jobpulse_bot?start=ref_{user_code}
+
+كل 5 تسجيلات ناجحة = شهر مجاني من Basic!
+(5 successful registrations = 1 free Basic month!)
+
+[Share Link]
+```
+
+---
+
+### /subscribe
+
+**Description**: Display subscription tier comparison  
+**Parameters**: None  
+**Response**: Three-tier comparison with current tier highlighted  
+
+**Response Format**:
+```
+💳 الخطط والاشتراكات (Subscription Plans)
+
+📌 خطتك الحالية: Free (Current: Free)
+
+┌─────────────────────────────────┐
+│ 🆓 Free                         │
+│ • سيرات CV: 1                   │
+│ • تأخير الإشعارات: 24 ساعة      │
+│ • خطابات الغلاف: 0             │
+│ [Current Plan]                  │
+├─────────────────────────────────┤
+│ 🥉 Basic - $7/月               │
+│ • سيرات CV: 1                   │
+│ • تأخير الإشعارات: 12 ساعة      │
+│ • خطابات الغلاف: 5             │
+│ [Choose Plan]                   │
+├─────────────────────────────────┤
+│ 🥇 Pro - $12/月                 │
+│ • سيرات CV: 2                   │
+• • تأخير الإشعارات: فوري        │
+• • خطابات الغلاف: غير محدود    │
+│ [Choose Plan]                   │
+└─────────────────────────────────┘
+
+[Back to Menu]
+```
+
+---
+
+### /cancel
+
+**Description**: Cancel current operation and return to main menu  
+**Parameters**: None  
+**Response**: Main menu display  
+
+**Flow**:
+1. Clear current FSM state
+2. Clear BotSession
+3. Display main menu
+
+---
+
+## Rate Limits
+
+- All commands subject to Telegram's 30 msg/s limit
+- Implement message queuing with exponential backoff on limit hit
+
+## Error Responses
+
+- Invalid command: "الأمر غير معروف. /help (Unknown command. Use /help)"
+- Session expired: "انتهت الجلسة. /start (Session expired. /start)"
+- Rate limited: Retry with backoff, display "يرجى الانتظار... (Please wait...)"
+========================================
+FILE PATH: specs/007-bot-handlers-ux/contracts/callback-actions.md
+========================================
+
+# Callback Actions Contract
+
+**Feature Branch**: `007-bot-handlers-ux`  
+**Date**: 2026-04-16
+
+## Callback Data Format
+
+All callback data follows pattern: `action:entity_id:value`
+
+---
+
+## Job Actions
+
+### save_job
+
+**Callback Data**: `save_job:{job_id}`  
+**Description**: Save a job from notification to saved list  
+**Verification**: Must verify callback.from_user.id == original message.from_user.id  
+
+**Response**: "تم الحفظ! Jobs in /my_jobs" (Saved! View in /my_jobs)  
+**Duplicate**: Display "تم حفظه بالفعل (Already saved)"
+
+---
+
+### unsave_job
+
+**Callback Data**: `unsave_job:{job_id}`  
+**Description**: Remove a job from saved list (in /my_jobs view)  
+**Verification**: Must verify user owns the saved job  
+
+**Response**: Update the job list, remove the card
+
+---
+
+### job_details
+
+**Callback Data**: `job_details:{job_id}`  
+**Description**: Show full job description and source link  
+**Response**: Full job details with link to Telegram channel  
+
+**Response Format**:
+```
+🏢 {company}
+📍 {location}
+💰 {salary}
+📊 {match_percent}%
+
+{description_full}
+
+🔗 المصدر (Source): [View Channel](channel_link)
+```
+
+---
+
+### cover_letter
+
+**Callback Data**: `cover_letter:{job_id}`  
+**Description**: Generate cover letter for job (placeholder, deferred)  
+**Response**: Placeholder message "قيد التطوير (Coming soon)"
+
+---
+
+### dismiss_match
+
+**Callback Data**: `dismiss_match:{match_id}`  
+**Description**: Dismiss exact job match (set is_dismissed=true)  
+**Note**: Only affects exact match record, not same job from different CV  
+
+**Response**: "تم التجاهل (Dismissed)" - remove notification message
+
+---
+
+## Pagination
+
+### jobs_page_next
+
+**Callback Data**: `jobs_page:{view}:{next_page}`  
+**Description**: Navigate to next page of job list  
+
+### jobs_page_prev
+
+**Callback Data**: `jobs_page:{view}:{prev_page}`  
+**Description**: Navigate to previous page of job list  
+
+### jobs_page_num
+
+**Callback Data**: `jobs_page:{view}:{page}`  
+**Description**: Jump to specific page  
+
+---
+
+## View Selection
+
+### view_saved
+
+**Callback Data**: `view:saved`  
+**Description**: Switch to Saved Jobs view  
+
+### view_notified
+
+**Callback Data**: `view:notified`  
+**Description**: Switch to All Notified view  
+
+### view_dismissed
+
+**Callback Data**: `view:dismissed`  
+**Description**: Switch to Dismissed view  
+
+---
+
+## Filters
+
+### filter_similarity
+
+**Callback Data**: `filter_sim:{value}`  
+**Values**: `80`, `70`, `all`  
+**Description**: Filter jobs by minimum similarity percentage  
+
+### filter_date
+
+**Callback Data**: `filter_date:{value}`  
+**Values**: `7`, `14`, `30`, `all`  
+**Description**: Filter jobs by date range  
+
+---
+
+## Settings Actions
+
+### edit_threshold
+
+**Callback Data**: `edit_threshold:start`  
+**Description**: Enter threshold editing mode  
+
+### threshold_set
+
+**Callback Data**: `threshold:{value}`  
+**Values**: `60`, `70`, `80`, `90`, `100`  
+**Description**: Set similarity threshold  
+
+### toggle_notifications
+
+**Callback Data**: `toggle_notifications`  
+**Description**: Toggle notification preference on/off  
+
+### copy_referral
+
+**Callback Data**: `copy_referral`  
+**Description**: Copy referral code to clipboard (show in message)  
+
+### share_referral
+
+**Callback Data**: `share_referral`  
+**Description**: Open share interface with referral link  
+
+### upgrade_plan
+
+**Callback Data**: `upgrade_plan:{tier}`  
+**Values**: `basic`, `pro`  
+**Description**: Show upgrade prompt (payment deferred)  
+
+---
+
+## CV Management
+
+### cv_details
+
+**Callback Data**: `cv_details:{cv_id}`  
+**Description**: Show CV details (score, skills, suggestions)  
+
+### delete_cv
+
+**Callback Data**: `delete_cv:{cv_id}`  
+**Description**: Initiate CV deletion with confirmation  
+
+### confirm_delete
+
+**Callback Data**: `confirm_delete:{cv_id}:{yes|no}`  
+**Description**: Confirm or cancel CV deletion  
+
+### activate_cv
+
+**Callback Data**: `activate_cv:{cv_id}`  
+**Description**: Activate an inactive CV  
+
+### confirm_replace
+
+**Callback Data**: `confirm_replace:{yes|no}`  
+**Description**: Confirm/reject CV replacement (Free/Basic tier)  
+
+---
+
+## Navigation
+
+### back_to_menu
+
+**Callback Data**: `back_to_menu`  
+**Description**: Return to main menu  
+
+### back_to_settings
+
+**Callback Data**: `back_to_settings`  
+**Description**: Return to settings view  
+
+### back_to_jobs
+
+**Callback Data**: `back_to_jobs`  
+**Description**: Return to job list  
+
+---
+
+## Error Handling
+
+### retry_action
+
+**Callback Data**: `retry:{action}:{params}`  
+**Description**: Retry failed action (network error recovery)  
+
+---
+
+## Security: Callback Verification
+
+Every callback query MUST verify:
+```python
+if callback.from_user.id != message.from_user.id:
+    await callback.answer("Unauthorized", show_alert=True)
+    return
+```
+
+This prevents users from clicking buttons on other users' messages.
+
+---
+
+## Response Patterns
+
+### Success
+- Edit original message with updated state
+- Or send new message for confirmations
+- Use ✅ reaction or checkmark in text
+
+### Error
+- Answer callback with alert: `await callback.answer("Error message", show_alert=True)`
+- Or edit message to show error state
+
+### Processing
+- Answer callback with loading: `await callback.answer("Processing...", show_alert=False)`
+- Or edit message to show spinner
+========================================
+FILE PATH: specs/007-bot-handlers-ux/data-model.md
+========================================
+
+# Data Model: Bot Handlers & UX Flow
+
+**Feature Branch**: `007-bot-handlers-ux`  
+**Phase**: 1 - Design  
+**Date**: 2026-04-16
+
+## Entities
+
+### Language (NEW TABLE)
+
+| Column | Type | Constraints | Description |
+|--------|------|--------------|-------------|
+| id | INT | PK | Primary key (1=Arabic, 2=English) |
+| code | VARCHAR(2) | NOT NULL, UNIQUE | Language code ('ar', 'en') |
+| name | VARCHAR(50) | NOT NULL | Language name ('Arabic', 'English') |
+
+**Seed Data**: (1, 'ar', 'Arabic'), (2, 'en', 'English')
+
+---
+
+### UserPreferences (UPDATE EXISTING)
+
+| Column | Type | Constraints | Description |
+|--------|------|--------------|-------------|
+| id | UUID | PK | Primary key |
+| user_id | UUID | FK → users.id, NOT NULL, UNIQUE | Owner user |
+| similarity_threshold | FLOAT | 60%-100%, default 80% | Match threshold |
+| notification_enabled | BOOLEAN | NOT NULL, DEFAULT TRUE | Notification toggle |
+
+---
+
+### SavedJob (NEW TABLE)
+
+| Column | Type | Constraints | Description |
+|--------|------|--------------|-------------|
+| id | UUID | PK | Primary key |
+| user_id | UUID | FK → users.id, NOT NULL, ON DELETE CASCADE | Owner user |
+| job_id | UUID | FK → jobs.id, NOT NULL, ON DELETE SET NULL | Saved job |
+| saved_at | TIMESTAMP | NOT NULL, DEFAULT NOW() | When saved |
+| created_at | TIMESTAMP | NOT NULL, DEFAULT NOW() | Record creation |
+| updated_at | TIMESTAMP | NOT NULL, DEFAULT NOW() | Last update |
+
+**Unique Constraint**: (user_id, job_id) - one save per user-job pair
+
+**Indexes**: idx_saved_jobs_user_id, idx_saved_jobs_job_id
+
+---
+
+### BotSession (Redis-backed, NEW)
+
+| Field | Type | Description |
+|-------|------|-------------|
+| user_id | int | Telegram user ID |
+| current_state | str | Current FSM state name |
+| last_activity | datetime | Last interaction timestamp |
+| flow_data | dict | State-specific data (e.g., upload step) |
+| created_at | datetime | Session start |
+| expires_at | datetime | Session expiry (last_activity + 10 min) |
+
+**Key Format**: `bot_session:{user_id}`  
+**TTL**: 600 seconds (10 minutes)
+
+**Error Handling**: If Redis is unavailable, the system should gracefully degrade to stateless mode (re-prompt user, log error to Sentry) and MUST NOT block core bot functionality.
+
+---
+
+### JobMatch (UPDATE EXISTING)
+
+| Column | Type | Changes |
+|--------|------|---------|
+| is_dismissed | BOOLEAN | NEW - Default FALSE, NOT NULL |
+
+---
+
+## Migrations Required
+
+### Migration 008: Add is_dismissed to job_matches
+
+- **File**: `migrations/versions/008_add_is_dismissed_to_job_matches.py`
+- **Operation**: `ALTER TABLE job_matches ADD COLUMN is_dismissed BOOLEAN NOT NULL DEFAULT FALSE`
+- **Purpose**: Track dismissed job matches for US3 and US4 functionality
+
+### Migration 009: Create saved_jobs table
+
+- **File**: `migrations/versions/009_create_saved_jobs_table.py`
+- **Operation**: `CREATE TABLE saved_jobs (...)`
+- **Purpose**: Track user-saved jobs for US3 and US4 functionality
+
+---
+
+## FSM States
+
+### CVUploadState
+
+```
+CVUploadState:
+  - waiting_for_file: User triggered /upload_cv, awaiting file
+  - processing_file: File received, validating and processing
+  - confirming_replace: Free/Basic user with existing CV, awaiting Yes/No
+```
+
+### SettingsState
+
+```
+SettingsState:
+  - threshold_editing: User adjusting similarity threshold
+```
+
+### MyJobsState
+
+```
+MyJobsState:
+  - browsing: User viewing job list with filters
+```
+
+### FSM State Transitions
+
+```
+CVUploadState:
+  None -> waiting_for_file (user triggers /upload_cv)
+  waiting_for_file -> processing_file (file received, validating)
+  processing_file -> confirming_replace (Free/Basic with existing active CV)
+  processing_file -> success (no replacement needed)
+  confirming_replace -> processing_file (user confirms Yes)
+  confirming_replace -> waiting_for_file (user confirms No)
+  Any state -> None (/cancel, session expires, flow completes)
+
+SettingsState:
+  None -> threshold_editing (user edits threshold)
+  threshold_editing -> None (saved, cancelled, session expires)
+```
+
+---
+
+## Message Templates (Bilingual Arabic + English)
+
+### Welcome Message
+```
+مرحباً بك في JobPulse! 👋
+(Welcome to JobPulse!)
+
+اسمك: {first_name}
+خطتك: {tier}
+
+ابدأ الآن! /start
+```
+
+### Main Menu
+```
+🔘 الرئيسية (Main Menu)
+```
+
+Buttons: Upload CV | My Jobs | Invite Friends | Settings
+
+### Job Notification
+```
+🎯 {job_title}
+🏢 {company}
+📍 {location}
+💰 {salary}
+📊 نسبة التطابق: {match_percent}% (Match: {match_percent}%)
+
+{description_preview}
+
+[Save] [Full Details] [Cover Letter] [Dismiss]
+```
+
+### Settings Display
+```
+⚙️ الإعدادات (Settings)
+
+• نسبة التطابق: {threshold}% (Threshold: {threshold}%)
+• الإشعارات: {on/off} (Notifications: {on/off})
+• اللغة: {language} (Language)
+• الخطة: {tier} (Plan)
+• رمز الإحالة: {referral_code} (Referral Code)
+
+[Edit Threshold] [Toggle Notifications] [Upgrade Plan]
+```
+
+### Error Messages
+- Format not supported: "التنسيق غير مدعوم. أرسل PDF، DOCX، أو TXT. (Format not supported. Send PDF, DOCX, or TXT.)"
+- File too large: "الملف كبير جداً (الأقصى 5MB). (File too large, max 5MB.)"
+- Generic error: "حدث خطأ. حاول لاحقاً. (An error occurred. Please try again.)"
+- Already saved: "تم حفظه بالفعل (Already saved)"
+
+---
+
+## Callback Data Patterns
+
+| Action | Format | Example |
+|--------|--------|---------|
+| Save job | `save_job:{job_id}` | `save_job:abc123` |
+| Unsave job | `unsave_job:{job_id}` | `unsave_job:abc123` |
+| View full details | `job_details:{job_id}` | `job_details:abc123` |
+| Dismiss match | `dismiss_match:{match_id}` | `dismiss_match:xyz789` |
+| Cover letter | `cover_letter:{job_id}` | `cover_letter:abc123` |
+| Pagination next | `jobs_page:{view}:{page}` | `jobs_page:saved:2` |
+| Pagination prev | `jobs_page:{view}:{page}` | `jobs_page:saved:1` |
+| Filter similarity | `filter_sim:{value}` | `filter_sim:80` |
+| Filter date | `filter_date:{value}` | `filter_date:7` |
+| Edit threshold | `edit_threshold:start` | `edit_threshold:start` |
+| Toggle notifications | `toggle_notifications` | `toggle_notifications` |
+| View CV details | `cv_details:{cv_id}` | `cv_details:cv123` |
+| Delete CV | `delete_cv:{cv_id}` | `delete_cv:cv123` |
+| Confirm replace | `confirm_replace:{yes/no}` | `confirm_replace:yes` |
+
+---
+
+## API Contracts (Summary)
+
+### Bot Commands
+- `/start` - Register or welcome user
+- `/help` - Show all commands
+- `/upload_cv` - Start CV upload flow
+- `/my_cvs` - List user CVs with delete option
+- `/my_jobs` - Browse saved/notified/dismissed jobs
+- `/settings` - View and edit preferences
+- `/invite` - Open referral interface
+- `/subscribe` - View subscription tiers
+- `/cancel` - Cancel current operation
+
+### Callback Queries
+- All callback actions defined in table above
+- All callbacks must verify `callback.from_user.id == message.from_user.id`
+
+### Inline Keyboards
+- Max 3 buttons per row
+- Use `InlineKeyboardBuilder` for complex layouts
+- Pagination: Prev | Page X/Y | Next
+- View selector: Saved | All Notified | Dismissed
+========================================
+FILE PATH: specs/007-bot-handlers-ux/plan.md
+========================================
+
+# Implementation Plan: Bot Handlers & UX Flow
+
+**Branch**: `007-bot-handlers-ux` | **Date**: 2026-04-16 | **Spec**: specs/007-bot-handlers-ux/spec.md
+**Input**: Feature specification from `/specs/007-bot-handlers-ux/spec.md`
+
+## Summary
+
+Build a complete Telegram bot user interface using aiogram 3.x that enables users to register, upload CVs, receive job match notifications, manage saved jobs, configure preferences, view subscription plans, and handle errors gracefully. Uses Redis-backed FSM for multi-step flows and follows clean architecture with repository pattern.
+
+## Technical Context
+
+**Language/Version**: Python 3.12+  
+**Primary Dependencies**: aiogram 3.x, FastAPI, SQLAlchemy 2.0 async, Redis, TaskIQ  
+**Storage**: PostgreSQL 16 with pgvector, Redis (session state)  
+**Testing**: pytest, pytest-asyncio  
+**Target Platform**: Linux server (Telegram Bot in webhook mode)  
+**Project Type**: Telegram Bot / Web Service  
+**Performance Goals**: <2s registration, <30s CV evaluation, <1s job list load, <500ms button response, <5s session expiry  
+**Constraints**: <200ms p95, 30 msg/s rate limit handling  
+**Scale/Scope**: ~10k users expected
+
+## Constitution Check
+
+| Gate | Status | Notes |
+|------|--------|-------|
+| I. Clean Architecture | PASS | Routes → Services → Repositories → DB |
+| II. SOLID Principles | PASS | DI used, single responsibility functions |
+| III. Clean Code Rules | PASS | Max 20 lines/function, type hints present |
+| IV. Security First | PASS | Fernet encryption on CVs, input validation |
+| V. Configuration Management | PASS | All config via settings.py |
+| VI. Language Policy | PASS | Bilingual (Arabic + English) for user messages |
+| VII. Database Changes | PASS | Alembic migrations required |
+| VIII. Testing Requirements | PASS | Unit tests required for services |
+| IX. Error Handling | PASS | Custom exceptions, Sentry, logging |
+| X. Async Best Practices | PASS | async/await, connection pooling |
+
+## Project Structure
+
+### Documentation (this feature)
+
+```text
+specs/007-bot-handlers-ux/
+├── plan.md              # This file
+├── research.md           # Phase 0 output
+├── data-model.md         # Phase 1 output
+├── quickstart.md         # Phase 1 output
+├── contracts/            # Phase 1 output
+└── tasks.md              # Phase 2 output
+```
+
+### Source Code (repository root)
+
+```text
+src/
+├── bot/
+│   ├── __init__.py
+│   ├── handlers.py           # Existing handlers (refactor needed)
+│   ├── handlers/              # NEW: modular handlers
+│   │   ├── __init__.py
+│   │   ├── registration.py    # /start, /help
+│   │   ├── cv_upload.py       # CV upload flow with FSM
+│   │   ├── cv_management.py   # /my_cvs, delete
+│   │   ├── job_notifications.py # match notifications
+│   │   ├── saved_jobs.py      # /my_jobs, save/unsave
+│   │   ├── settings.py        # /settings, preferences
+│   │   ├── referral.py        # /invite, share
+│   │   ├── subscription.py    # /subscribe
+│   │   └── errors.py          # /cancel, error handling
+│   ├── keyboards.py           # NEW: inline keyboard builders
+│   ├── middlewares.py         # NEW: Rate Limiter and Callback Validation Middlewares (foundational infrastructure)
+│   └── utils/
+│       └── i18n.py            # NEW: bilingual message resolver
+├── services/
+│   ├── bot_session_service.py # NEW: Redis-backed session FSM
+│   ├── saved_job_service.py   # NEW: saved jobs CRUD
+│   ├── notification_service.py # existing, extend for rich notifications
+│   └── cv_service.py          # existing, extend with quota checks
+├── repositories/
+│   ├── saved_job_repository.py # NEW: saved_jobs table
+│   ├── user_repository.py     # existing
+│   └── match_repository.py    # existing, extend
+├── models/
+│   ├── user.py                # existing
+│   ├── user_cv.py             # existing
+│   ├── language.py            # NEW: languages table
+│   ├── saved_job.py           # NEW: saved_jobs table
+│   └── job_match.py           # existing, add is_dismissed
+config/
+├── settings.py                 # existing
+└── ai_models.py               # existing
+
+tests/
+├── unit/
+│   ├── services/
+│   │   ├── test_bot_session_service.py
+│   │   └── test_saved_job_service.py
+│   └── bot/
+│       ├── test_registration.py
+│       └── test_cv_upload.py
+└── integration/
+    └── test_bot_flows.py
+```
+
+**Structure Decision**: Modular handler structure under `src/bot/handlers/` with service layer for business logic and repository pattern for data access. Redis used for BotSession state management.
+
+## Complexity Tracking
+
+| Constitution Principle | Compliance Strategy | Implementation Approach |
+|------------------------|---------------------|--------------------------|
+| I. Clean Architecture | Routes → Services → Repositories → DB | Handlers call services, services call repositories |
+| II. SOLID Principles | Single responsibility, DI | Each handler file handles one user story |
+| III. Clean Code Rules | Max 20 lines/function, max 200 lines/file | Modular handler structure split by feature |
+| IV. Security First | Input validation, Fernet encryption | Validate all inputs, existing CV encryption |
+| V. Configuration Management | All config via settings.py | Bot token, Redis URL from settings |
+| VI. Language Policy | Bilingual Arabic + English | i18n utility loads messages from JSON |
+| VII. Database Changes | Alembic migrations only | Migrations 008, 009 for new tables/columns |
+| VIII. Testing Requirements | Unit tests for services | T077-T080 in Phase 12 |
+| IX. Error Handling | Custom exceptions, Sentry | Graceful degradation in Redis unavailability |
+| X. Async Best Practices | async/await, connection pooling | Async handlers, proper session management |
+
+## Integration Points
+
+This SPEC integrates with other specifications as follows:
+
+| Source SPEC | Integration | Implementation |
+|-------------|-------------|----------------|
+| SPEC-004 (CV Upload) | Call `CVService.upload_cv()`, display evaluation results | Task T024: Integrate with existing CV evaluation service |
+| SPEC-005 (Job Matching) | Receive notifications, send user preferences (similarity threshold) | Tasks T034-T041: Notification handler uses user preferences |
+| SPEC-006 (Task Queue) | Queue background tasks for CV processing | Task T028: FSM state transitions for async CV evaluation |
+| SPEC-008 (Cover Letter) | UI button present but functionality deferred | Task T036: Cover Letter button shows "coming soon" message |
+| SPEC-009 (Payment) | UI button present but functionality deferred | Task T067: Choose Plan buttons are non-functional placeholders |
+
+## Phase 0: Research Complete
+
+Research completed in `research.md`. Key findings:
+- Aiogram 3.x FSM with Redis context for session state
+- 10-minute session expiry
+- Rate limiting via middleware (~30 msg/s)
+- Bilingual messages (Arabic + English)
+- File validation: PDF, DOCX, TXT, max 5MB
+- Tier-based CV limits: Free/Basic=1, Pro=2
+- Pagination: 5 jobs per page
+
+## Phase 1: Design Artifacts
+
+### Data Model
+
+See `data-model.md` for entity definitions:
+- SavedJob table (new)
+- BotSession (Redis-based)
+- JobMatch.is_dismissed column
+
+### Contracts
+
+See `/contracts/` for interface definitions:
+- Telegram Bot command schema
+- Inline keyboard callback format
+- Notification message template
+
+### Quick Start
+
+See `quickstart.md` for implementation guide.
+
+========================================
+FILE PATH: specs/007-bot-handlers-ux/quickstart.md
+========================================
+
+# Quickstart: Bot Handlers & UX Flow
+
+**Feature Branch**: `007-bot-handlers-ux`  
+**Date**: 2026-04-16
+
+## Prerequisites
+
+- Python 3.12+
+- PostgreSQL 16 with pgvector extension
+- Redis 5.2.1+
+- Telegram Bot Token (from config/settings.py)
+
+## Setup
+
+1. **Install dependencies**:
+   ```bash
+   pip install aiogram==3.4.1 redis==5.2.1
+   ```
+
+2. **Run migrations**:
+   ```bash
+   alembic upgrade head
+   ```
+   (Creates `saved_jobs` table and adds `is_dismissed` column)
+
+3. **Configure bot**:
+   Ensure `telegram.bot_token` in `config/settings.py`
+
+## Project Structure
+
+```
+src/bot/
+├── __init__.py
+├── router.py           # Main router
+├── middlewares.py      # Auth, rate-limit, session
+├── keyboards.py        # Inline/Reply keyboards
+├── filters.py          # Custom filters
+├── states.py           # FSM states
+├── formatters.py       # Message formatters
+└── handlers/
+    ├── __init__.py
+    ├── start.py        # /start, /help
+    ├── cv_upload.py    # /upload_cv
+    ├── cv_management.py # /my_cvs
+    ├── job_notifications.py # Notification callbacks
+    ├── my_jobs.py      # /my_jobs
+    ├── settings.py     # /settings
+    ├── referral.py     # /invite
+    ├── subscription.py # /subscribe
+    └── errors.py       # /cancel, errors
+```
+
+## Key Services (NEW)
+
+- `BotSessionService`: Manages user session state in Redis
+- `SavedJobService`: CRUD for saved jobs
+- `RateLimiter`: Per-user rate limiting middleware
+- `i18n`: Bilingual message resolver
+
+## Running the Bot
+
+### Webhook Mode (Production)
+```bash
+python -m src.bot.webhook
+```
+
+### Polling Mode (Development)
+```bash
+python -m src.bot.polling
+```
+
+## Testing
+
+```bash
+cd src
+pytest tests/unit/bot/ -v
+```
+
+## Bot Commands Quick Reference
+
+| Command | Description |
+|---------|-------------|
+| `/start` | Register/welcome user |
+| `/help` | Show commands |
+| `/upload_cv` | Upload CV flow |
+| `/my_cvs` | List CVs |
+| `/my_jobs` | Browse saved jobs |
+| `/settings` | Edit preferences |
+| `/invite` | Referral link |
+| `/subscribe` | View tiers |
+| `/cancel` | Cancel flow |
+
+## Environment Variables
+
+- `TELEGRAM_BOT_TOKEN` - Bot API token
+- `REDIS_URL` - Redis connection (default: redis://localhost:6379)
+- `DATABASE_URL` - PostgreSQL connection
+
+## Next Steps
+
+1. Implement handlers in `src/bot/handlers/`
+2. Create BotSessionService with Redis
+3. Create SavedJobService and repository
+4. Add rate limiting middleware
+5. Implement i18n message resolver
+6. Write unit tests
+========================================
+FILE PATH: specs/007-bot-handlers-ux/research.md
+========================================
+
+# Research: Bot Handlers & UX Flow
+
+**Feature Branch**: `007-bot-handlers-ux`  
+**Phase**: 0 - Research  
+**Date**: 2026-04-16
+
+## Research Summary
+
+### Aiogram 3.x FSM Patterns
+
+The project uses aiogram 3.x. Key patterns identified:
+- **FSM**: Use `aiogram.fsm.context.FSMContext` for multi-step flows (CV upload, threshold editing)
+- **States**: Define states as classes inheriting from `FSM` with state attributes
+- **Transitions**: Use `@router.message()` and `@router.callback_query()` with `state=...` filter
+
+### Redis-Backed Session
+
+- BotSession needs Redis-backed session state with 10-minute expiry
+- Key format: `bot_session:{user_id}`
+- Store: current state, last activity timestamp, flow-specific data (e.g., upload progress)
+
+### Rate Limiting
+
+- Telegram rate limit: ~30 msg/s
+- Middleware approach: check last message timestamp per user
+- If limit exceeded, queue message and retry with exponential backoff
+
+### Bilingual Messages (Arabic + English)
+
+- i18n resolver needed: `src/utils/i18n.py`
+- Message format: Arabic text first, English in parentheses
+- Example: "مرحباً بك (Welcome)" or "حدث خطأ. حاول لاحقاً. (An error occurred. Please try again.)"
+
+### Existing Patterns to Follow
+
+From existing `src/bot/handlers.py`:
+- Use `filters.ChatTypeFilter(chat_type=types.ChatType.PRIVATE)` for private chats
+- Keyboard buttons use `InlineKeyboardButton(text=..., callback_data=...)`
+- Callback data format: `action:entity_id:value`
+- Error handling wraps handlers with try/except and logs to Sentry
+
+## Questions Resolved
+
+1. **File formats**: PDF, DOCX, TXT only - need validation in upload handler
+2. **Max file size**: 5MB - need check before processing
+3. **Tier-based CV limits**: Free/Basic = 1 active, Pro = 2 active
+4. **Pagination**: 5 jobs per page, use offset/limit in queries
+5. **Dismiss behavior**: Exact match only - `is_dismissed` column on JobMatch table
+
+## Key Entities to Create
+
+1. **SavedJob** (new table): user_id, job_id, saved_at - unique constraint on (user_id, job_id)
+2. **BotSession** (Redis): user_id, current_state, last_activity, flow_data
+3. Update **JobMatch**: add `is_dismissed` boolean column
+
+## Implementation Approach
+
+- Create router structure under `src/bot/handlers/`
+- Use middleware for auth, rate limiting, session expiry
+- Service layer for business logic (BotSessionService, SavedJobService)
+- Repository for SavedJob data access
+
+## Notes
+
+- Webhook mode deployment
+- Test with pytest-asyncio using existing conftest pattern
+========================================
+FILE PATH: specs/007-bot-handlers-ux/spec.md
+========================================
+
+# Feature Specification: Bot Handlers & UX Flow
+
+**Feature Branch**: `007-bot-handlers-ux`
+**Created**: 2026-04-13
+**Status**: Draft
+**Input**: User description: "Build a complete Telegram bot user interface that enables users to register, upload CVs, receive job match notifications, manage saved jobs, configure preferences, view subscription plans, and handle errors gracefully."
+
+## Clarifications
+
+### Session 2026-04-13
+
+- Q: Should CV deletion capability be in scope for this spec? → A: Yes — CV deletion is in scope; add CV deletion capability (e.g., /my_cvs command with delete button)
+- Q: What is the BotSession inactivity timeout before expiry? → A: 10 minutes of inactivity — session expires, user returns to main menu
+- Q: Should users be able to unsave/remove a previously saved job? → A: Yes — add Unsave/Remove button on saved job cards
+- Q: What does Dismiss suppress — the exact match, the same job, or the same company? → A: Exact match only — dismiss hides only the specific job match record
+- Q: What are the reliability and availability requirements for this bot system? → A: Standard — 99% uptime, 24hr recovery, basic error logging only
+- Q: What observability requirements should be implemented for debugging and monitoring? → A: Standard — Error logs + structured request logging + basic metrics (response time, error rate) + Sentry for exceptions
+- Q: How should the system handle concurrent user actions that could conflict (e.g., user deletes CV while job matching is processing that CV)? → A: Last-write-wins — Most recent action takes precedence silently; matching jobs check if CV still exists before sending notifications
+- Q: What scaling approach should be planned for future growth beyond 10k users? → A: Horizontal-ready — Stateless design with sessions in Redis, prepared for multiple instances
+
+## User Scenarios & Testing *(mandatory)*
+
+### User Story 1 - User Registration & Onboarding (Priority: P1)
+
+A new user sends the /start command to the bot for the first time. The system automatically creates their user record, detects their preferred language from their Telegram settings, generates a unique referral code, and displays a welcome message with four main menu buttons: Upload CV, My Jobs, Invite Friends, and Settings. If the user already exists, the welcome message is simply re-displayed without creating a duplicate record. The /help command shows a list of all available commands and their descriptions.
+
+**Why this priority**: Registration is the gateway to all other features. Without it, no user can access any functionality. It must work flawlessly and immediately to prevent drop-off.
+
+**Independent Test**: Can be fully tested by sending /start to the bot and verifying the welcome message, user record creation, language detection, and referral code generation. Delivers immediate value by onboarding the user.
+
+**Acceptance Scenarios**:
+
+1. **Given** a user has never interacted with the bot, **When** they send /start, **Then** a new user record is created with their Telegram ID, username, first name, last name, auto-detected language, Free subscription tier, and a unique 12-character referral code, and a welcome message with main menu buttons is displayed
+2. **Given** a user already exists in the system, **When** they send /start again, **Then** the welcome message is re-displayed without creating a duplicate record (idempotent)
+3. **Given** a user sends /start with a referral parameter (e.g., ref_ABC123XYZ), **When** the user record is created, **Then** the referral source is tracked for the referring user
+4. **Given** any registered user, **When** they send /help, **Then** a list of all bot commands and their descriptions is displayed
+
+---
+
+### User Story 2 - CV Upload & Evaluation Display (Priority: P1)
+
+A user wants to upload their CV to receive job matches. They trigger the upload flow via the /upload_cv command or the Upload CV button. The bot prompts them to send a file, validates it (PDF, DOCX, or TXT, max 5MB), shows a processing status, and then displays evaluation results including completeness score, extracted skills, and improvement suggestions. For Free/Basic tier users with an existing active CV, a replacement prompt is shown. Pro tier users can have up to 2 active CVs simultaneously.
+
+**Why this priority**: CV upload is the core input that powers the entire job matching pipeline. Without a CV, no matches can be generated.
+
+**Independent Test**: Can be fully tested by uploading a CV file and verifying validation, processing status, evaluation display, and tier-based behavior. Delivers value by showing the user their CV analysis.
+
+**Acceptance Scenarios**:
+
+1. **Given** a user triggers the upload flow, **When** they send a valid file (PDF/DOCX/TXT, ≤5MB), **Then** a processing status message is shown, followed by evaluation results with completeness score, skills list, and improvement suggestions
+2. **Given** a user triggers the upload flow, **When** they send an unsupported file format, **Then** an error message "Format not supported. Please send PDF, DOCX, or TXT." is displayed
+3. **Given** a user triggers the upload flow, **When** they send a file exceeding 5MB, **Then** an error message "File too large (max 5MB). Please compress or use a smaller file." is displayed
+4. **Given** a Free/Basic tier user with an existing active CV, **When** they upload a new CV, **Then** a replacement prompt "Replace existing CV? [Yes] [No]" is displayed
+5. **Given** a user with no active CV, **When** they upload a new CV, **Then** the CV is automatically activated
+6. **Given** a Pro tier user with fewer than 2 active CVs, **When** they upload a new CV, **Then** the CV is added without a replacement prompt
+7. **Given** a Pro tier user with 2 active CVs, **When** they attempt to upload a 3rd CV, **Then** an error message "Pro tier allows 2 CVs. Delete one first." is displayed
+8. **Given** a user is in the CV upload flow, **When** they send a non-file message, **Then** the message is ignored and the upload prompt is repeated
+
+---
+
+### User Story 2.1 - CV Deletion & Management (Priority: P1)
+
+A user wants to manage their uploaded CVs, including deleting ones they no longer need. The /my_cvs command displays a list of the user's CVs with status (active/inactive), upload date, and completeness score. Each CV has a Delete button. Deleting a CV removes it from active matching. If the deleted CV was active and another inactive CV exists, the system prompts the user to activate a replacement.
+
+**Why this priority**: Without deletion, Pro users who hit the 2-CV limit are locked out (the error message promises deletion). This is a necessary lifecycle operation.
+
+**Independent Test**: Can be tested by uploading CVs, then using /my_cvs to delete one, verifying it no longer appears and matching stops using it.
+
+**Acceptance Scenarios**:
+
+1. **Given** a user sends /my_cvs, **When** they have one or more CVs, **Then** a list of their CVs is displayed with status, upload date, completeness score, and a Delete button for each
+2. **Given** a user clicks Delete on a CV, **When** a confirmation prompt appears and they confirm, **Then** the CV is removed and no longer used for job matching
+3. **Given** a user deletes their only active CV, **When** they have another inactive CV, **Then** they are prompted to activate the inactive CV
+4. **Given** a user deletes their only active CV, **When** they have no other CVs, **Then** they are informed that job matching will be paused until a new CV is uploaded
+
+---
+
+### User Story 3 - Job Match Notifications (Priority: P1)
+
+When a job matches a user's CV above their similarity threshold, the user receives a rich notification containing job details (title, company, location, salary, match percentage, description preview up to 200 characters) along with action buttons: Save, Full Details, Cover Letter, and Dismiss. For Pro users with multiple active CVs, a single notification shows match scores for each CV.
+
+**Why this priority**: Job notifications are the primary value delivery mechanism. Users signed up to receive relevant job matches — this is the core output of the system.
+
+**Independent Test**: Can be tested by triggering a match notification and verifying content, buttons, and tier-specific behavior. Delivers immediate value by showing matched jobs.
+
+**Acceptance Scenarios**:
+
+1. **Given** a job matches a user's active CV above the similarity threshold, **When** the notification is sent, **Then** it includes job title, company, location, salary range, match percentage, and description preview (first 200 characters), with inline buttons: Save, Full Details, Cover Letter, Dismiss
+2. **Given** a user receives a job notification, **When** they click Save, **Then** the job is added to their saved jobs list and a confirmation "Saved! View in /my_jobs" is shown
+3. **Given** a user has already saved a job, **When** they click Save on the same job notification again, **Then** a message "Already saved" is displayed without creating a duplicate
+4. **Given** a user receives a job notification, **When** they click Full Details, **Then** a new message with the full job description and a link to the source Telegram channel is sent
+5. **Given** a user receives a job notification, **When** they click Dismiss, **Then** the match is marked as dismissed (does not block future similar job matches)
+6. **Given** a Pro tier user with 2 active CVs both matching a job, **When** the notification is sent, **Then** a single notification shows match scores for both CVs (e.g., "Matches 2 CVs: Backend (87%), Frontend (72%)")
+7. **Given** a user has deleted all their CVs, **When** a match would be sent, **Then** the notification is skipped (no active CV)
+
+---
+
+### User Story 4 - Saved Jobs Management (Priority: P2)
+
+A user wants to browse and manage their job matches. The /my_jobs command presents three views: Saved Jobs (default), All Notified, and Dismissed. Each view shows job cards with title, company, match percentage, and relative date. Users can filter by similarity threshold (>80%, >70%, All) and date range (7 days, 14 days, 30 days). Results are paginated at 5 jobs per page with navigation buttons.
+
+**Why this priority**: Once users receive notifications, they need a way to review and organize them. This is the post-notification management layer.
+
+**Independent Test**: Can be tested by saving jobs via notifications, then browsing /my_jobs with different views, filters, and pagination. Delivers value by letting users organize their job search.
+
+**Acceptance Scenarios**:
+
+1. **Given** a user sends /my_jobs, **When** the command is processed, **Then** a view selector is displayed with three options: Saved, All Notified, Dismissed, defaulting to Saved
+2. **Given** a user is viewing any job list, **When** jobs exist, **Then** each job card shows title, company, match percentage, relative date (e.g., "3 hours ago"), and inline buttons for View and Cover Letter; in the Saved view, an additional Unsave/Remove button is shown
+3. **Given** a user is viewing a job list with more than 5 jobs, **When** the first page is displayed, **Then** a Next button appears; when on subsequent pages, both Prev and Next buttons appear as appropriate
+4. **Given** a user is viewing a job list, **When** they apply similarity and date filters, **Then** only matching jobs are shown, and the filters persist across page navigation
+5. **Given** a user is viewing a job list, **When** no jobs match the current filters, **Then** an appropriate empty state message is displayed ("No saved jobs yet" or "No jobs match filters")
+6. **Given** a user is viewing the Saved view, **When** they click Unsave/Remove on a job card, **Then** the job is removed from their saved jobs list and the list is updated
+
+---
+
+### User Story 5 - Settings & Preferences (Priority: P2)
+
+A user wants to configure their matching preferences and view their account details. The /settings command displays their current similarity threshold (default 80%), notification toggle, auto-detected language (read-only), current subscription tier, and referral code. Users can adjust their similarity threshold (60%-100%), toggle notifications on/off, and view their referral statistics.
+
+**Why this priority**: Settings give users control over their experience. Without threshold control, users may receive too many or too few matches.
+
+**Independent Test**: Can be tested by adjusting settings and verifying persistence. Delivers value by giving users control over match quality.
+
+**Acceptance Scenarios**:
+
+1. **Given** a user sends /settings, **When** the command is processed, **Then** their current similarity threshold, notification status, detected language (read-only), subscription tier, referral code with Copy and Share buttons, and referral statistics are displayed
+2. **Given** a user opens threshold editing, **When** they input a value between 60 and 100, **Then** the threshold is saved and a confirmation is displayed
+3. **Given** a user opens threshold editing, **When** they input a value outside 60-100, **Then** an error message rejects the input
+4. **Given** a user toggles notifications, **When** they switch from enabled to disabled (or vice versa), **Then** the new state is saved and reflected in the settings display
+5. **Given** a user views settings, **When** they click Upgrade Plan, **Then** the subscription tiers view is displayed
+
+---
+
+### User Story 6 - Referral System UI (Priority: P2)
+
+A user wants to invite friends to the bot and track their referral rewards. The Invite Friends button from the main menu opens the referral interface with a pre-filled share message containing the user's unique referral link. The settings view shows referral statistics including total invites, successful registrations, rewards earned, and claimed rewards.
+
+**Why this priority**: Referrals drive organic growth. Enabling easy sharing and transparent tracking incentivizes users to invite others.
+
+**Independent Test**: Can be tested by clicking Invite Friends, sharing the link, and verifying referral statistics update. Delivers value through potential rewards.
+
+**Acceptance Scenarios**:
+
+1. **Given** a user clicks Invite Friends from the main menu, **When** the referral interface opens, **Then** a pre-filled message with their unique referral link and benefit description is displayed
+2. **Given** a user views the referral interface, **When** they click Share Link, **Then** the platform's native share interface opens with the referral message pre-filled
+3. **Given** a user views their referral stats in Settings, **When** the stats are displayed, **Then** total invites sent, successful registrations, rewards earned progress (e.g., "3/5 for free Basic month"), and claimed rewards history are shown
+4. **Given** a new user sends /start with a referral parameter, **When** their account is created, **Then** the referral source is tracked and credited to the referring user
+
+---
+
+### User Story 7 - Subscription Plans Preview (Priority: P3)
+
+A user wants to understand the available subscription tiers and their features. The /subscribe command displays three tiers (Free, Basic at $7/month, Pro at $12/month) with a feature comparison showing CV limits, notification delays, and cover letter quotas. The user's current plan is highlighted. Choose Plan buttons are present but payment processing is deferred to a future specification.
+
+**Why this priority**: This is informational only and payment flow is deferred. Users need to see options, but no transaction happens in this spec.
+
+**Independent Test**: Can be tested by viewing /subscribe and verifying all tier details and current plan highlighting. Delivers value by informing upgrade decisions.
+
+**Acceptance Scenarios**:
+
+1. **Given** a user sends /subscribe, **When** the command is processed, **Then** three tiers are displayed: Free, Basic ($7/month), and Pro ($12/month), each showing CV limit, notification delay, and cover letter quota
+2. **Given** a user views subscription tiers, **When** their current plan is among the displayed tiers, **Then** it is highlighted with a checkmark badge
+3. **Given** a user views subscription tiers, **When** they click Choose Plan, **Then** the button is present (payment flow is deferred)
+4. **Given** a user has reached their CV limit or cover letter quota, **When** they attempt the restricted action, **Then** an upgrade prompt appears directing them to /subscribe
+
+---
+
+### User Story 8 - Error Handling & Recovery (Priority: P3)
+
+When errors occur during bot interactions, users receive clear, actionable feedback. A /cancel command stops any in-progress operation and returns to the main menu. Specific validation errors have specific messages. Recoverable errors (like network failures) show a retry button. Unhandled exceptions show a generic error message.
+
+**Why this priority**: Error handling is essential for a polished experience but can be iteratively improved. Core flows must work first.
+
+**Independent Test**: Can be tested by triggering various error conditions and verifying appropriate messages and recovery options. Delivers value by preventing user frustration.
+
+**Acceptance Scenarios**:
+
+1. **Given** a user is in any multi-step flow, **When** they send /cancel, **Then** the current operation is cancelled and the main menu is displayed
+2. **Given** an unhandled exception occurs, **When** the error is caught, **Then** a generic error message "حدث خطأ. حاول لاحقاً." is displayed
+3. **Given** a recoverable error occurs (e.g., network failure during CV processing), **When** the error is caught, **Then** a retry button is displayed allowing the user to attempt the operation again
+4. **Given** a user sends an invalid file format, **When** validation fails, **Then** a specific error message "Format not supported. Please send PDF, DOCX, or TXT." is displayed
+5. **Given** a user sends a file exceeding 5MB, **When** validation fails, **Then** a specific error message "File too large (max 5MB). Please compress or use a smaller file." is displayed
+
+---
+
+### Edge Cases
+
+- What happens when a user sends /start multiple times? The welcome message is re-displayed without creating a duplicate record (idempotent).
+- What happens when a Pro user tries to upload a 3rd CV? An error message "Pro tier allows 2 CVs. Delete one first." is displayed.
+- What happens when a user clicks Save on an already-saved job? A message "Already saved" is displayed without creating a duplicate.
+- What happens when a user clicks Unsave on a saved job? The job is removed from the saved jobs list and the list updates immediately.
+- What happens when a notification would be sent but the user has no active CV? The notification is skipped entirely.
+- What happens when a user changes their similarity threshold while jobs are queued for notification? Only future matches are affected; queued notifications are delivered as originally computed.
+- What happens when a user dismisses a job match? Only the exact match record is hidden; the same job posting from a different CV or a new match is not suppressed.
+- What happens when the platform's message rate limit is hit? Messages are queued and retried with increasing delays between attempts.
+- What happens when a user sends a non-file message during the CV upload flow? The message is ignored and the upload prompt is repeated.
+- What happens when a user's language cannot be detected from their Telegram settings? A default language (Arabic) is used.
+- What happens when a user starts a multi-step flow (e.g., CV upload) but is inactive for 10 minutes? The session expires automatically and the user is returned to the main menu.
+- What happens when a user deletes their CV while a job matching job is processing that CV? The matching job checks if CV still exists before sending notification; if deleted, notification is skipped silently.
+
+## Requirements *(mandatory)*
+
+### Functional Requirements
+
+- **FR-001**: System MUST create a user record upon first /start interaction with telegram ID, username, first name, last name, auto-detected language, Free subscription tier, and unique 12-character referral code
+- **FR-002**: System MUST re-display the welcome message without creating duplicate records when an existing user sends /start (idempotent behavior)
+- **FR-003**: System MUST auto-detect user language from the user's platform language setting, defaulting to Arabic when not available
+- **FR-004**: System MUST display a main menu with four options: Upload CV, My Jobs, Invite Friends, and Settings
+- **FR-005**: System MUST respond to /help with a list of all available commands and their descriptions
+- **FR-006**: System MUST handle /upload_cv command and the Upload CV button identically, prompting the user to send a file
+- **FR-007**: System MUST validate uploaded file type (PDF, DOCX, TXT only) and reject unsupported formats with a specific error message
+- **FR-008**: System MUST validate uploaded file size (maximum 5MB) and reject oversized files with a specific error message
+- **FR-009**: System MUST display a processing status message while the CV is being evaluated
+- **FR-010**: System MUST display evaluation results including completeness percentage, extracted skills list, and improvement suggestions
+- **FR-011**: System MUST prompt Free/Basic tier users with an existing active CV whether to replace it before saving a new one
+- **FR-012**: System MUST automatically activate a newly uploaded CV when the user has no other active CV
+- **FR-013**: System MUST allow Pro tier users to upload a second CV without a replacement prompt
+- **FR-014**: System MUST manage CV lifecycle with the following capabilities:
+  - a) Provide a `/my_cvs` command that lists all user CVs with status, upload date, completeness score, and a Delete button.
+  - b) Allow users to delete a CV with a confirmation prompt.
+  - c) Prompt the user to activate an inactive CV when they delete their only active CV and another inactive CV exists.
+  - d) Inform the user that job matching is paused when they delete their only CV and no other CVs exist.
+- **FR-015**: System MUST send job match notifications including job title, company, location, salary range, match percentage, and description preview (first 200 characters)
+- **FR-016**: System MUST include four action buttons in each job notification: Save, Full Details, Cover Letter, and Dismiss
+- **FR-017**: System MUST add a job to the user's saved jobs when Save is clicked and display a confirmation message
+- **FR-018**: System MUST prevent duplicate saves by checking the saved jobs list before adding, and display "Already saved" if the job was previously saved
+- **FR-019**: System MUST send the full job description with a link to the source channel when Full Details is clicked
+- **FR-020**: System MUST mark a specific job match record as dismissed when Dismiss is clicked; dismissal only affects the exact match record and does not suppress future notifications for the same job posting from other CVs or new matches
+- **FR-021**: System MUST send a single consolidated notification for Pro tier users when a job matches multiple active CVs, showing match scores for each
+- **FR-022**: System MUST skip job notifications for users who have no active CVs
+- **FR-023**: System MUST display a view selector in /my_jobs with three options: Saved, All Notified, and Dismissed, defaulting to Saved
+- **FR-024**: System MUST display job cards showing title, company, match percentage, and relative date with View and Cover Letter action buttons; in the Saved view, an additional Unsave/Remove button must be shown; users MUST be allowed to remove a job from their saved jobs list by clicking Unsave/Remove, updating the list immediately
+- **FR-025**: System MUST paginate job lists at 5 jobs per page with Prev and Next navigation buttons when multiple pages exist
+- **FR-026**: System MUST provide similarity filters (>80%, >70%, All) and date range filters (7 days, 14 days, 30 days) in the job list view
+- **FR-027**: System MUST persist filter selections across page navigation within the same viewing session
+- **FR-028**: System MUST display an appropriate empty state message when no jobs match the current view or filter criteria
+- **FR-029**: System MUST format dates as relative times with the following exact logic:
+  - <60 seconds: "just now"
+  - <60 minutes: "X minutes ago"
+  - <24 hours: "X hours ago"
+  - <7 days: "X days ago"
+  - >=7 days: "MMM DD, YYYY" (e.g., "Apr 10, 2026")
+- **FR-030**: System MUST display the user's current similarity threshold (default 80%) in settings
+- **FR-031**: System MUST allow users to adjust their similarity threshold between 60% and 100% via inline buttons or numeric input
+- **FR-032**: System MUST save threshold changes to the user's preferences immediately
+- **FR-033**: System MUST display the user's current notification preference (enabled/disabled) in settings
+- **FR-034**: System MUST allow users to toggle notifications on or off and persist the change immediately
+- **FR-035**: System MUST display the user's auto-detected language as read-only in settings
+- **FR-036**: System MUST display the user's current subscription tier in settings
+- **FR-037**: System MUST display the user's referral code with Copy and Share buttons in settings
+- **FR-038**: System MUST validate threshold input and reject values outside the 60%-100% range with an error message
+- **FR-039**: System MUST generate a referral link in the format: https://t.me/{bot_name}?start=ref_{referral_code}
+- **FR-040**: System MUST display referral statistics: total invites sent, successful registrations, rewards earned progress, and claimed rewards history
+- **FR-041**: System MUST use the platform's native share interface when the user clicks Share Link
+- **FR-042**: System MUST track referral source when a new user starts the bot via a referral parameter
+- **FR-043**: System MUST display three subscription tiers in /subscribe: Free, Basic ($7/month), and Pro ($12/month), each with CV limit, notification delay, and cover letter quota details
+- **FR-044**: System MUST highlight the user's current subscription tier with a visual indicator
+- **FR-045**: System MUST show Choose Plan buttons for each subscription tier (payment processing is deferred)
+- **FR-046**: System MUST display an upgrade prompt when a user reaches their tier's CV limit or cover letter quota
+- **FR-047**: System MUST respond to /cancel by stopping the current operation and returning to the main menu
+- **FR-047a**: System MUST automatically expire a BotSession after 10 minutes of user inactivity and return the user to the main menu
+- **FR-048**: System MUST display a generic error message for unhandled exceptions
+- **FR-049**: System MUST display a retry button for recoverable errors (e.g., network failures)
+- **FR-050**: System MUST validate all user inputs including file uploads and text inputs before processing
+- **FR-051**: System MUST queue and retry message delivery with increasing delays when the platform's rate limit is reached
+- **FR-052**: System MUST validate that inline button callbacks originate from the same user who received the original message
+- **FR-053**: System MUST store filter state (view, similarity, date range) in BotSession and persist it across pagination within the same viewing session.
+- **FR-054**: System MUST clean up temporary uploaded files when BotSession expires or `/cancel` is triggered during the CV upload flow.
+
+### Key Entities
+
+- **User**: A registered bot user with telegram ID, username, `language_id` (FK -> `languages.id`), subscription tier, referral code, and notification settings. Relates to SavedJobs, UserPreferences, and UserCVs.
+- **Language**: A system language dictionary (e.g., Arabic, English) containing `id`, `code`, and `name`. Linked to Users via `language_id`.
+- **UserCV**: A CV belonging to a user, with status (active/inactive), upload date, completeness score, extracted skills, and file reference. Can be deleted by the user. Active CVs are used for job matching.
+- **SavedJob**: A many-to-many relationship between a user and a job they bookmarked, with a saved timestamp. Uniquely constrained per user-job pair.
+- **UserPreferences**: User-configurable settings including similarity threshold (60%-100%, default 80%) and notification toggle (stored as `notification_enabled` boolean column). Belongs to one user.
+- **BotSession**: Temporary state tracking a user's position in a multi-step conversation flow (e.g., CV upload, threshold editing). Belongs to one user. Expires after 10 minutes of inactivity or when the flow completes or is cancelled, returning the user to the main menu.
+
+## Success Criteria *(mandatory)*
+
+### Measurable Outcomes
+
+- **SC-001**: Users receive the welcome message and are registered within 2 seconds of sending /start
+- **SC-002**: Users see CV evaluation results within 30 seconds of uploading their file
+- **SC-003**: Job match notifications are delivered within 30 seconds of the match being identified (adjusted by tier-defined delays)
+- **SC-004**: The /my_jobs list loads and displays a page of results within 1 second
+- **SC-005**: Filters are applied and results update within 1 second
+- **SC-006**: All inline button actions respond within 500ms
+- **SC-007**: Error messages are displayed for 100% of validation failures (file format, file size, threshold range)
+- **SC-008**: Referral links are generated successfully 100% of the time
+- **SC-009**: 90% of new users complete the registration flow (send /start) and see the main menu on their first attempt
+- **SC-010**: Saved jobs are persisted and retrievable across bot sessions with no data loss
+- **SC-011**: Notification delivery success rate is >=99% (excluding cases where the user blocked the bot).
+- **SC-012**: BotSession MUST expire and return the user to the main menu within 5 seconds of reaching the 10-minute inactivity threshold.
+- **SC-013**: System MUST maintain 99% uptime with 24-hour recovery capability for critical failures.
+- **SC-014**: System MUST log all requests with structured format and track basic metrics (response time, error rate); exceptions MUST be tracked via Sentry.
+
+## Assumptions
+
+- The bot token and configuration are already set up from a previous specification (SPEC-002)
+- All database tables from the initial schema specification exist (users, user_cvs, jobs, job_matches)
+- The job matching engine from a previous specification is operational and produces matches
+- The CV evaluation service from a previous specification is operational and returns completeness, skills, and suggestions
+- Cover letter generation buttons are present but the underlying functionality is deferred to a future specification
+- Payment processing for subscription upgrades is deferred to a future specification — Choose Plan buttons are non-functional placeholders
+- User language auto-detection relies on the user's platform language setting, which may not be available (defaults to Arabic)
+- The platform enforces a rate limit of approximately 30 messages per second; the system handles this with queuing and retries
+- The bot runs in webhook mode for production deployment
+- All user-facing messages use bilingual format (Arabic primary, English secondary) with emoji for visual clarity
+- Inline keyboard layouts use a maximum of 3 buttons per row for mobile usability
+- A new "saved_jobs" data structure is needed to track user-job bookmark relationships with unique constraints per user-job pair
+- Referral rewards follow a 5-invites-per-reward model (e.g., 5 successful referrals earns a free Basic month)
+- Users can have a maximum of 1 active CV on Free/Basic tier and 2 active CVs on Pro tier
+- The similarity threshold default is 80% and the adjustable range is 60%-100%
+- Accepted CV file formats are PDF, DOCX, and TXT with a maximum size of 5MB
+- BotSession is stored in Redis (key: `bot_session:{user_id}`, TTL: 600 seconds) with fields: current_state, last_activity, flow_data.
+- System is designed for horizontal scaling with stateless application tier and Redis-backed sessions.
+- saved_jobs.job_id FK uses ON DELETE CASCADE (not SET NULL) to avoid IntegrityError with nullable=False
+- Settings display logic uses a shared _render_settings() helper instead of mutating callback.message.from_user
+- Toggle notification defaults to OFF (False) when no preferences exist, matching the user's intent to toggle off
+- callback_back_to_menu fetches the user's actual subscription_tier from the database (FR-036)
+
+## Bug Fix Log (2026-04-18)
+
+- **Fix 1 (FR-003)**: `get_locale()` now returns `"ar"` for non-Arabic/unavailable languages (was `"en"`). Lint: `logger.error` → `logger.exception` in JSONDecodeError handler.
+- **Fix 2**: `saved_jobs.job_id` FK changed from `ondelete="SET NULL"` to `ondelete="CASCADE"` to prevent IntegrityError when a job is deleted (nullable=False rejects SET NULL). Type hint corrected to `Mapped["Job"]`. Migration `014_saved_job_cascade_fk.py` created.
+- **Fix 3 (FR-034)**: Toggle notification handler now sets `new_state=False` / `notification_enabled=False` when no prefs exist. Settings display extracted into `_render_settings()` helper to eliminate unsafe `callback.message.from_user` mutation. Dead code removed from `callback_upgrade_plan`.
+- **Fix 4 (FR-036)**: `callback_back_to_menu` now fetches actual `user.subscription_tier` from DB instead of hardcoding `"Free"`.
+
+## Bug Fix Log (2026-04-18) — Round 2
+
+- **Fix 1 (FR-026)**: `SavedJobRepository.get_saved_by_user` removed dead `min_similarity` parameter (similarity_score is on JobMatch, not SavedJob). Implemented `days` filter using `saved_at >= cutoff`. Optimized `unsave_job` from SELECT-then-DELETE to single `delete().where()` using `result.rowcount > 0`.
+- **Fix 2**: `MatchRepository.get_notified_matches_by_user` now accepts `exclude_dismissed: bool = True` parameter, filtering `is_dismissed` at the DB level to fix pagination. Removed client-side `[m for m in matches if not m.is_dismissed]` filter from `saved_jobs.py`. Removed dead `_total_pages` variable. Added `logger.debug` in edit-text fallback except block.
+- **Fix 3**: `callback_job_details` now guards against `job.description is None` (was `None[:1000]` TypeError). Unsave callback now uses `t("job_unsaved", locale)` instead of hardcoded "✅". Added `"job_unsaved"` key to messages.json. Replaced two `try/except/pass` blocks with `contextlib.suppress(Exception)` (SIM105, BLE001, S110).
+
+## Bug Fix Log (2026-04-18) — Round 3
+
+- **Fix 1**: Deleted empty `CallbackValidationMiddleware` class (body was `pass`). Removed unused `_queue` dict from `RateLimiterMiddleware.__init__`. Replaced unbounded `_user_timestamps: dict[int, list[float]]` with `cachetools.TTLCache(maxsize=10000, ttl=60)` to auto-evict stale entries and prevent memory leak. Added `cachetools>=5.5.0` to requirements.txt.
+- **Fix 2**: Added `CLEANUP_THRESHOLD = SESSION_TTL + 300` constant (900) in `bot_session_service.py`, replacing hardcoded `900` in `cleanup_expired_sessions`.
+- **Fix 3 (RUF006)**: `main.py` now stores `health_task = asyncio.create_task(start_health_server())` and calls `health_task.cancel()` in `finally` block to prevent premature GC cancellation.
+- **Fix 4**: `src/bot/health.py` replaced `__import__("sqlalchemy").text("SELECT 1")` with proper `from sqlalchemy import text` import at module level.
+
+## Bug Fix Log (2026-04-18) — Round 4
+
+- **Fix 1 (cv_upload.py)**: Removed unnecessary `else:` after `return` (RET505). Renamed unused unpacked variables to `_title`, `_text` (RUF059). Added `-> None` return type to `_process_upload` (ANN202). Renamed unused `state` to `_state` in `handle_invalid_file` (ARG001).
+- **Fix 2 (cv_management.py + messages.json)**: Replaced wrong `t("no_jobs")` with `t("no_cvs")`. Replaced fragile `t("help").split("\n")[0]` with `t("cv_list_header")`. Added `no_cvs` and `cv_list_header` keys to messages.json. Fixed typo "سيرات CV" → "سير ذاتية" in subscribe messages.
+- **Fix 3 (errors.py)**: Replaced hardcoded `locale = "ar"` with `get_locale()` using update object's `from_user.language_code` (FR-003). Added `state.clear()` in error handler to prevent stuck FSM states.
+- **Fix 4 (subscription.py)**: Removed dead `if tier == "free" else "subscribe_free"` ternary. Replaced fragile index-based list manipulation with a clean loop over `tiers_info`.
+- **Fix 5 (referral.py)**: Replaced hardcoded `"jobpulse_bot"` with `get_settings().telegram.bot_username` fallback to `message.bot.username`. Added `bot_username` field to `TelegramSettings`.
+- **Fix 6 (keyboards.py)**: Made boolean params keyword-only (`*` separator) in `settings_keyboard`, `cv_details_keyboard`, `job_card_keyboard`. Updated all call sites.
+
+## Bug Fix Log (2026-04-18) — Round 5
+
+- **Fix 1 (settings.py)**: Replaced hardcoded `"jobpulse_bot"` in `callback_share_referral` with `get_settings().telegram.bot_username or "jobpulse_bot"`.
+- **Fix 2 (test_bot_session_service.py)**: Replaced synchronous `MagicMock(return_value=iter([...]))` with proper async generator mock for `scan_iter` to ensure compatibility with redis.asyncio.
+
+========================================
+FILE PATH: specs/007-bot-handlers-ux/tasks.md
+========================================
+
+# Tasks: Bot Handlers & UX Flow
+
+**Input**: Design documents from `/specs/007-bot-handlers-ux/`
+**Prerequisites**: plan.md (required), spec.md (required for user stories), research.md, data-model.md, contracts/
+
+**Organization**: Tasks are grouped by user story to enable independent implementation and testing of each story.
+
+## Format: `[ID] [P?] [Story] Description`
+
+- **[P]**: Can run in parallel (different files, no dependencies)
+- **[Story]**: Which user story this task belongs to (e.g., US1, US2, US3)
+- Include exact file paths in descriptions
+
+## Phase 1: Setup (Shared Infrastructure)
+
+**Purpose**: Project initialization and basic structure
+
+- [X] T001 [P] Create bot directory structure: src/bot/handlers/, src/bot/utils/
+- [X] T002 [P] Create services directory structure: src/services/
+- [X] T003 [P] Create repositories directory structure: src/repositories/
+- [X] T004 Install aiogram 3.x and redis dependencies
+
+---
+
+## Phase 2: Foundational (Blocking Prerequisites)
+
+**Purpose**: Core infrastructure that MUST be complete before ANY user story can be implemented
+
+**⚠️ CRITICAL**: No user story work can begin until this phase is complete
+
+- [X] T005 [P] Create SavedJob model in src/models/saved_job.py
+- [X] T006 [P] Create SavedJobRepository in src/repositories/saved_job_repository.py
+- [X] T007 Create BotSessionService for Redis-backed session FSM in src/services/bot_session_service.py
+- [X] T008 Create SavedJobService in src/services/saved_job_service.py
+- [X] T009 [P] Create i18n utility for bilingual messages in src/bot/utils/i18n.py - must load messages from JSON file (src/bot/locales/messages.json), support 'ar' and 'en' locales (default to Arabic), format: `{key: {"ar": "...", "en": "..."}}`
+- [X] T010 Create inline keyboard builders in src/bot/keyboards.py
+- [X] T011 [P] Create middlewares (auth, rate limit, callback validation) in src/bot/middlewares.py - Rate Limiter middleware must implement queue with exponential backoff for 30 msg/s limit; Callback Validation must verify callback.from_user == message.from_user for all inline buttons
+- [X] T011c [P] Configure application structured logging and Sentry integration (e.g., in src/bot/utils/logger.py) to fulfill observability requirements [SC-014]
+- [X] T011d [P] Implement a basic /health HTTP endpoint (running alongside the bot webhook) to verify bot status, Redis connection, and Database connectivity for uptime monitoring [SC-013]
+- [X] T012 Create FSM states definition in src/bot/states.py
+- [X] T013 [P] Create Alembic migration `alembic/versions/008_add_is_dismissed.py` to add is_dismissed column to JobMatch table (BOOLEAN NOT NULL DEFAULT FALSE)
+- [X] T014 [P] Create Alembic migration `alembic/versions/009_create_saved_jobs.py` for the saved_jobs table with columns (id UUID PK, user_id UUID FK → users.id ON DELETE CASCADE, job_id UUID FK → jobs.id ON DELETE SET NULL, saved_at TIMESTAMP, created_at TIMESTAMP, updated_at TIMESTAMP), unique constraint on (user_id, job_id)
+- [X] T014a [P] Create Language model in src/models/language.py and Alembic migration `alembic/versions/010_create_languages_table.py` (include seed data for 'ar' and 'en')
+- [X] T014b [P] Create Alembic migration `alembic/versions/011_add_language_fk_and_notifications.py` to add `language_id` (FK → languages.id) to users table and `notification_enabled` (BOOLEAN DEFAULT TRUE) to user_preferences table
+- [X] T014c [P] Implement Redis session cleanup job in src/services/bot_session_service.py to remove expired sessions older than 15 minutes, scheduled via TaskIQ
+
+**Checkpoint**: Foundation ready - user story implementation can now begin in parallel
+
+---
+
+## Phase 3: User Story 1 - User Registration & Onboarding (Priority: P1) 🎯 MVP
+
+**Goal**: Users can register via /start and see main menu with 4 buttons; /help shows commands
+
+**Independent Test**: Send /start to bot, verify user record created, welcome message with menu buttons displayed
+
+### Implementation for User Story 1
+
+- [X] T015 [P] [US1] Create registration handler in src/bot/handlers/registration.py (/start, /help)
+- [X] T016 [P] [US1] Implement language detection from Telegram user settings
+- [X] T017 [P] [US1] Implement 12-character referral code generation
+- [X] T018 [US1] Implement main menu keyboard with 4 buttons (Upload CV, My Jobs, Invite Friends, Settings)
+- [X] T019 [US1] Implement /help command showing all available commands
+- [X] T020 [US1] Handle referral parameter in /start (track referred_by)
+
+**Checkpoint**: User Story 1 should be fully functional and testable independently
+
+---
+
+## Phase 4: User Story 2 - CV Upload & Evaluation Display (Priority: P1)
+
+**Goal**: Users can upload CVs, see validation errors, processing status, and evaluation results
+
+**Independent Test**: Upload a valid PDF/DOCX/TXT file, verify evaluation results displayed; upload invalid file, verify specific error
+
+### Implementation for User Story 2
+
+- [X] T021 [P] [US2] Create CV upload handler in src/bot/handlers/cv_upload.py
+- [X] T022 [P] [US2] Implement file validation (PDF, DOCX, TXT only, max 5MB)
+- [X] T023 [P] [US2] Implement processing status message display
+- [X] T024 [US2] Integrate with existing CV evaluation service
+- [X] T025 [US2] Implement tier-based CV limit checking (Free/Basic=1, Pro=2)
+- [X] T026 [US2] Implement replacement prompt for Free/Basic users with existing CV
+- [X] T027 [US2] Implement automatic CV activation when no active CV exists
+- [X] T028 [US2] Add FSM state transitions for CV upload flow
+
+**Checkpoint**: User Story 2 should be fully functional and testable independently
+
+---
+
+## Phase 5: User Story 2.1 - CV Deletion & Management (Priority: P1)
+
+**Goal**: Users can view their CVs via /my_cvs and delete them with confirmation
+
+**Independent Test**: Upload CV, send /my_cvs, click Delete, confirm, verify CV removed; test prompt to activate replacement when deleting active CV
+
+### Implementation for User Story 2.1
+
+- [X] T029 [P] [US2.1] [FR-014a] Create CV management handler in src/bot/handlers/cv_management.py
+- [X] T030 [US2.1] [FR-014a] Implement /my_cvs command listing all user CVs with status, date, score
+- [X] T031 [US2.1] [FR-014b] Implement Delete button with confirmation prompt
+- [X] T032 [US2.1] [FR-014c] Implement prompt to activate replacement CV when deleting active CV
+- [X] T033 [US2.1] [FR-014d] Implement "job matching paused" message when deleting only CV
+
+**Checkpoint**: User Story 2.1 should be fully functional and testable independently
+
+---
+
+## Phase 6: User Story 3 - Job Match Notifications (Priority: P1)
+
+**Goal**: Users receive rich job notifications with action buttons; Save, Dismiss, Full Details work
+
+**Independent Test**: Trigger match notification, verify content and buttons; click Save, verify saved; click Dismiss, verify marked
+
+### Implementation for User Story 3
+
+- [X] T034 [P] [US3] Create job notification handler in src/bot/handlers/job_notifications.py
+- [X] T035 [P] [US3] Implement rich notification message format (title, company, location, salary, match %, description preview)
+- [X] T036 [P] [US3] Implement Save button callback and SavedJobService.save() call
+- [X] T037 [US3] Implement "Already saved" handling for duplicates
+- [X] T038 [US3] Implement Full Details button showing full job description
+- [X] T039 [US3] Implement Dismiss button marking is_dismissed=true
+- [X] T040 [US3] Implement Pro tier multi-CV notification showing scores for each CV
+- [X] T041 [US3] Implement notification skip for users with no active CVs
+
+**Checkpoint**: User Story 3 should be fully functional and testable independently
+
+---
+
+## Phase 7: User Story 4 - Saved Jobs Management (Priority: P2)
+
+**Goal**: Users can browse saved/notified/dismissed jobs with filters and pagination
+
+**Independent Test**: Save jobs via notifications, browse /my_jobs, switch views, apply filters, navigate pages
+
+### Implementation for User Story 4
+
+- [X] T042 [P] [US4] Create saved jobs handler in src/bot/handlers/saved_jobs.py
+- [X] T043 [P] [US4] Implement /my_jobs with view selector (Saved, All Notified, Dismissed)
+- [X] T044 [US4] Implement job card display with title, company, match %, relative date
+- [X] T045 [US4] Implement pagination (5 jobs/page, Prev/Next buttons)
+- [X] T046 [US4] Implement similarity filters (>80%, >70%, All)
+- [X] T047 [US4] Implement date range filters (7, 14, 30 days)
+- [X] T048 [US4] Implement filter persistence across page navigation
+- [X] T049 [US4] Implement empty state messages
+- [X] T050 [US4] Implement Unsave/Remove button for saved jobs
+
+**Checkpoint**: User Story 4 should be fully functional and testable independently
+
+---
+
+## Phase 8: User Story 5 - Settings & Preferences (Priority: P2)
+
+**Goal**: Users can view and edit their similarity threshold, notification toggle, view referral stats
+
+**Independent Test**: Send /settings, verify all fields displayed; change threshold, verify persisted; toggle notifications, verify state change
+
+### Implementation for User Story 5
+
+- [X] T051 [P] [US5] Create settings handler in src/bot/handlers/settings.py
+- [X] T052 [P] [US5] Implement /settings display with threshold, notifications, language, tier, referral code
+- [X] T053 [US5] Implement threshold editing (60%-100% range validation)
+- [X] T054 [US5] Implement notification toggle with immediate persistence
+- [X] T055 [US5] Implement Copy and Share buttons for referral code
+- [X] T056 [US5] Implement referral statistics display (total invites, successful, progress)
+- [X] T057 [US5] Implement Upgrade Plan button linking to /subscribe
+
+**Checkpoint**: User Story 5 should be fully functional and testable independently
+
+---
+
+## Phase 9: User Story 6 - Referral System UI (Priority: P2)
+
+**Goal**: Users can invite friends and track referral rewards
+
+**Independent Test**: Click Invite Friends, verify pre-filled share message; share link, verify referral tracked
+
+### Implementation for User Story 6
+
+- [X] T058 [P] [US6] Create referral handler in src/bot/handlers/referral.py
+- [X] T059 [US6] Implement /invite command with pre-filled referral message
+- [X] T060 [US6] Implement referral link generation (https://t.me/{bot}?start=ref_{code})
+- [X] T061 [US6] Implement Share Link using platform's native share interface
+- [X] T062 [US6] Integrate referral tracking into /start handler (referred_by field)
+
+**Checkpoint**: User Story 6 should be fully functional and testable independently
+
+---
+
+## Phase 10: User Story 7 - Subscription Plans Preview (Priority: P3)
+
+**Goal**: Users can view subscription tiers and see their current plan highlighted
+
+**Independent Test**: Send /subscribe, verify Free/Basic/Pro tiers displayed with correct features; current tier highlighted
+
+### Implementation for User Story 7
+
+- [X] T063 [P] [US7] Create subscription handler in src/bot/handlers/subscription.py
+- [X] T064 [US7] Implement /subscribe displaying Free, Basic ($7/mo), Pro ($12/mo)
+- [X] T065 [US7] Display feature comparison (CV limits, notification delays, cover letter quotas)
+- [X] T066 [US7] Highlight user's current tier with checkmark
+- [X] T067 [US7] Add Choose Plan buttons (non-functional placeholders)
+
+**Checkpoint**: User Story 7 should be fully functional and testable independently
+
+---
+
+## Phase 11: User Story 8 - Error Handling & Recovery (Priority: P3)
+
+**Goal**: Users receive clear error messages and can cancel in-progress operations
+
+**Independent Test**: Start flow, send /cancel, verify returns to main menu; trigger error, verify appropriate message
+
+### Implementation for User Story 8
+
+- [X] T068 [P] [US8] Create error handler in src/bot/handlers/errors.py
+- [X] T069 [P] [US8] Implement /cancel command stopping current operation and returning to main menu
+- [X] T070 [US8] Implement BotSession expiry after 10 minutes inactivity (within 5 seconds of threshold)
+- [X] T071 [US8] Implement generic error message ("حدث خطأ. حاول لاحقاً.")
+- [X] T072 [US8] Implement retry button for recoverable errors (network failures)
+
+**Checkpoint**: User Story 8 should be fully functional and testable independently
+
+---
+
+## Phase 12: Polish & Cross-Cutting Concerns
+
+**Purpose**: Improvements that affect multiple user stories
+
+- [X] T075 [P] Run ruff linting and fix any issues
+- [X] T076 [P] Run mypy type checking and fix any issues
+- [X] T077 Write unit tests for BotSessionService in tests/unit/services/
+- [X] T078 Write unit tests for SavedJobService in tests/unit/services/
+- [X] T079 Write unit tests for registration handler in tests/unit/bot/
+- [X] T080 Write unit tests for cv_upload handler in tests/unit/bot/
+- [X] T081 Integrate all handlers into main bot router in src/bot/router.py
+- [X] T082 Run quickstart.md validation
+- [X] T082a [P] Write integration test for full registration flow in tests/integration/test_registration_flow.py
+- [X] T082b [P] Write integration test for CV upload -> evaluation -> activation flow in tests/integration/test_cv_upload_flow.py
+- [X] T082c [P] Write integration test for job notification -> save -> /my_jobs retrieval in tests/integration/test_job_notification_flow.py
+- [X] T082d [P] Write integration test for filter persistence across pagination in tests/integration/test_filter_persistence.py
+- [X] T083 Write performance integration tests to verify SC-001 (<2s registration), SC-004 (<1s list load), SC-006 (<500ms button response), and SC-012 (Session expiry within 5s)
+
+---
+
+## Phase 13: Bug Fixes — Spec Violations & Runtime Crashes
+
+**Purpose**: Fix four critical spec violations causing runtime crashes and incorrect UX behavior
+
+- [X] T084 Fix i18n get_locale() default to "ar" (FR-003) and logger.error → logger.exception (TRY400) in src/bot/utils/i18n.py
+- [X] T085 Fix SavedJob ondelete="SET NULL" → "CASCADE" with nullable=False and Mapped["Job | None"] → Mapped["Job"] in src/models/saved_job.py
+- [X] T086 Create Alembic migration 014_saved_job_cascade_fk.py to update FK constraint
+- [X] T087 Fix toggle notification handler: new_state=True → False when prefs is None (FR-034) in src/bot/handlers/settings.py
+- [X] T088 Extract _render_settings() helper to avoid unsafe callback.message.from_user mutation in src/bot/handlers/settings.py
+- [X] T089 Remove dead code in callback_upgrade_plan (RUF034) in src/bot/handlers/settings.py
+- [X] T090 Fix callback_back_to_menu hardcoding tier="Free" — fetch real tier from DB (FR-036) in src/bot/handlers/registration.py
+- [X] T091 Write unit tests for i18n fixes in tests/unit/bot/test_i18n.py
+- [X] T092 Write unit tests for settings fixes in tests/unit/bot/test_settings.py
+- [X] T093 Write unit tests for registration back_to_menu fix in tests/unit/bot/test_registration.py
+
+---
+
+## Phase 14: Bug Fixes — Dead Filter Parameters, Query Optimization, Null Safety
+
+**Purpose**: Fix dead filter parameters, optimize queries, and add defensive null checks in notification handlers
+
+- [X] T094 Remove dead min_similarity parameter and implement days filter in SavedJobRepository.get_saved_by_user (FR-026) in src/repositories/saved_job_repository.py
+- [X] T095 Optimize unsave_job from SELECT-then-DELETE to single delete().where() in src/repositories/saved_job_repository.py
+- [X] T096 Add exclude_dismissed parameter to MatchRepository.get_notified_matches_by_user to fix pagination bug in src/repositories/match_repository.py
+- [X] T097 Remove client-side dismissed filter from notified view in src/bot/handlers/saved_jobs.py
+- [X] T098 Remove dead _total_pages variable in src/bot/handlers/saved_jobs.py
+- [X] T099 Add logger.debug in edit-text fallback except block in src/bot/handlers/saved_jobs.py
+- [X] T100 Add null safety for job.description in callback_job_details in src/bot/handlers/job_notifications.py
+- [X] T101 Replace hardcoded "✅" with localized t("job_unsaved", locale) in unsave callback + add messages.json key
+- [X] T102 Replace try/except/pass with contextlib.suppress(Exception) in unsave and dismiss callbacks (SIM105, BLE001, S110)
+- [X] T103 Write unit tests for saved_job_repository days filter and unsave optimization
+- [X] T104 Write unit tests for match_repository exclude_dismissed parameter
+- [X] T105 Write unit tests for job_notifications null safety and localization fixes
+
+---
+
+## Phase 15: Bug Fixes — Dead Middleware, Inconsistent Constants, Lint Issues
+
+**Purpose**: Remove dead middleware, fix inconsistent constants, and resolve lint issues in infrastructure files
+
+- [X] T106 Delete empty CallbackValidationMiddleware class from src/bot/middlewares.py
+- [X] T107 Remove unused _queue dict from RateLimiterMiddleware.__init__ in src/bot/middlewares.py
+- [X] T108 Replace unbounded _user_timestamps dict with cachetools.TTLCache(maxsize=10000, ttl=60) in src/bot/middlewares.py
+- [X] T109 Add cachetools>=5.5.0 to requirements.txt
+- [X] T110 Replace hardcoded 900 with CLEANUP_THRESHOLD = SESSION_TTL + 300 in src/services/bot_session_service.py
+- [X] T111 Fix RUF006: store health_task reference and cancel after polling in main.py
+- [X] T112 Replace __import__("sqlalchemy").text("SELECT 1") with proper import in src/bot/health.py
+- [X] T113 Write unit tests for middleware TTLCache and deleted CallbackValidationMiddleware
+- [X] T114 Write unit tests for bot_session_service CLEANUP_THRESHOLD constant
+- [X] T115 Write unit tests for health.py proper sqlalchemy import
+
+---
+
+## Phase 16: Bug Fixes — Lint Violations, Wrong Locale Keys, Hardcoded Values
+
+**Purpose**: Fix all remaining lint violations, wrong locale keys, hardcoded values, and fragile code patterns across bot handlers
+
+- [X] T116 Fix RET505: remove unnecessary else after return in cv_upload.py
+- [X] T117 Fix RUF059: rename unused unpacked variables to _title, _text in cv_upload.py (2 locations)
+- [X] T118 Fix ANN202: add -> None return type to _process_upload in cv_upload.py
+- [X] T119 Fix ARG001: rename unused state to _state in handle_invalid_file in cv_upload.py
+- [X] T120 Fix wrong locale key: t("no_jobs") → t("no_cvs") in cv_management.py
+- [X] T121 Replace fragile t("help").split("\\n")[0] with t("cv_list_header") in cv_management.py (2 locations)
+- [X] T122 Add "no_cvs" and "cv_list_header" keys to messages.json
+- [X] T123 Fix typo "سيرات CV" → "سير ذاتية" in subscribe messages (3 occurrences)
+- [X] T124 Fix FR-003: replace hardcoded locale="ar" with get_locale() from update object in errors.py
+- [X] T125 Add state.clear() in error handler to prevent stuck FSM states in errors.py
+- [X] T126 Remove dead if-else "subscribe_free" if tier=="free" else "subscribe_free" in subscription.py
+- [X] T127 Replace fragile index-based lines manipulation with loop in subscription.py
+- [X] T128 Replace hardcoded "jobpulse_bot" with bot username from settings in referral.py
+- [X] T129 Add bot_username field to TelegramSettings in config/settings.py
+- [X] T130 Fix FBT001: make bool params keyword-only in keyboards.py (settings_keyboard, cv_details_keyboard, job_card_keyboard)
+- [X] T131 Update all call sites for keyword-only keyboard params (settings.py, cv_management.py)
+- [X] T132 Write tests for lint fixes and locale key corrections
+- [X] T133 Replace hardcoded "jobpulse_bot" with get_settings().telegram.bot_username in settings.py callback_share_referral
+- [X] T134 Fix async mock for scan_iter in test_cleanup_expired_sessions test
+
+---
+
+## Dependencies & Execution Order
+
+### Phase Dependencies
+
+- **Setup (Phase 1)**: No dependencies - can start immediately
+- **Foundational (Phase 2)**: Depends on Setup completion - BLOCKS all user stories
+- **User Stories (Phase 3+)**: All depend on Foundational phase completion
+  - User stories can then proceed in parallel (if staffed)
+  - Or sequentially in priority order (P1 → P2 → P3)
+- **Polish (Final Phase)**: Depends on all desired user stories being complete
+
+### User Story Dependencies
+
+- **User Story 1 (P1)**: Can start after Foundational (Phase 2) - No dependencies on other stories
+- **User Story 2 (P1)**: Can start after Foundational - Uses existing CV service
+- **User Story 2b (P1)**: Can start after Foundational - Uses existing CV service
+- **User Story 3 (P1)**: Can start after Foundational - Uses SavedJobService (T008)
+- **User Story 4 (P2)**: Can start after Foundational - Uses SavedJobService
+- **User Story 5 (P2)**: Can start after Foundational - Uses existing preferences
+- **User Story 6 (P2)**: Can start after Foundational - Integrates with US1
+- **User Story 7 (P3)**: Can start after Foundational - Uses existing subscription data
+- **User Story 8 (P3)**: Can start after Foundational - Uses BotSessionService
+
+### Within Each User Story
+
+- Models before services (Phase 2)
+- Services before handlers
+- Core implementation before integration
+- Story complete before moving to next priority
+
+### Parallel Opportunities
+
+- All Setup tasks marked [P] can run in parallel
+- All Foundational tasks marked [P] can run in parallel (within Phase 2)
+- Once Foundational phase completes, all P1 user stories can start in parallel
+- Models within a story marked [P] can run in parallel
+- Different user stories can be worked on in parallel by different team members
+
+---
+
+## Parallel Example: User Story 1
+
+```bash
+# Launch registration handler work:
+Task: "Create registration handler in src/bot/handlers/registration.py"
+Task: "Implement language detection from Telegram user settings"
+Task: "Implement 12-character referral code generation"
+Task: "Implement main menu keyboard with 4 buttons"
+```
+
+---
+
+## Implementation Strategy
+
+### MVP First (User Story 1 Only)
+
+1. Complete Phase 1: Setup
+2. Complete Phase 2: Foundational (CRITICAL - blocks all stories)
+3. Complete Phase 3: User Story 1
+4. **STOP and VALIDATE**: Test User Story 1 independently
+5. Deploy/demo if ready
+
+### Incremental Delivery
+
+1. Complete Setup + Foundational → Foundation ready
+2. Add User Story 1 → Test independently → Deploy/Demo (MVP!)
+3. Add User Stories 2, 2b, 3 → Test independently → Deploy/Demo
+4. Add User Stories 4, 5, 6 → Test independently → Deploy/Demo
+5. Add User Stories 7, 8 → Test independently → Deploy/Demo
+
+### Parallel Team Strategy
+
+With multiple developers:
+
+1. Team completes Setup + Foundational together
+2. Once Foundational is done:
+   - Developer A: User Story 1 (Registration)
+   - Developer B: User Story 2 (CV Upload) + 2b (CV Management)
+   - Developer C: User Story 3 (Notifications)
+3. Stories complete and integrate independently
+
+---
+
+## Notes
+
+- [P] tasks = different files, no dependencies
+- [Story] label maps task to specific user story for traceability
+- Each user story should be independently completable and testable
+- Commit after each task or logical group
+- Stop at any checkpoint to validate story independently
+- Avoid: vague tasks, same file conflicts, cross-story dependencies that break independence
