@@ -43,7 +43,21 @@ async def on_error(event: ErrorEvent, state: FSMContext):
     logger.exception("Unhandled error in bot: %s", event.exception)
 
     update = event.update
-    locale = "ar"
+    lang_code = None
+    if hasattr(update, "message") and update.message and update.message.from_user:
+        lang_code = update.message.from_user.language_code
+    elif (
+        hasattr(update, "callback_query")
+        and update.callback_query
+        and update.callback_query.from_user
+    ):
+        lang_code = update.callback_query.from_user.language_code
+    locale = get_locale(lang_code)
+
+    try:
+        await state.clear()
+    except Exception:
+        pass
 
     try:
         if hasattr(update, "message") and update.message:

@@ -69,7 +69,9 @@ def date_filter_keyboard() -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
-def settings_keyboard(threshold: int, notifications_on: bool) -> InlineKeyboardMarkup:
+def settings_keyboard(
+    threshold: int, *, notifications_on: bool
+) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     for val in [60, 70, 80, 90, 100]:
         marker = " ✅" if val == threshold else ""
@@ -102,7 +104,7 @@ def cv_list_keyboard(cvs: list[dict]) -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
-def cv_details_keyboard(cv_id: str, is_active: bool) -> InlineKeyboardMarkup:
+def cv_details_keyboard(cv_id: str, *, is_active: bool) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     if not is_active:
         builder.button(text="✅ تفعيل (Activate)", callback_data=f"activate_cv:{cv_id}")
@@ -167,7 +169,7 @@ def error_retry_keyboard(action: str, params: str = "") -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
-def job_card_keyboard(job_id: str, is_saved: bool) -> InlineKeyboardMarkup:
+def job_card_keyboard(job_id: str, *, is_saved: bool) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     if is_saved:
         builder.button(

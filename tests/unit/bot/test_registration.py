@@ -25,6 +25,21 @@ def _make_fsm_state(user_id: int = 123):
     return FSMContext(storage=MemoryStorage(), key=MagicMock(user_id=user_id))
 
 
+def _make_callback(
+    user_id: int = 123, lang_code: str = "ar", data: str = "back_to_menu"
+):
+    callback = MagicMock()
+    callback.from_user = MagicMock()
+    callback.from_user.id = user_id
+    callback.from_user.first_name = "Test"
+    callback.from_user.language_code = lang_code
+    callback.data = data
+    callback.answer = AsyncMock()
+    callback.message = MagicMock()
+    callback.message.edit_text = AsyncMock()
+    return callback
+
+
 async def _run_with_db_session(handler, *args, session_data=None):
     mock_session = AsyncMock()
     mock_session.commit = AsyncMock()
@@ -160,3 +175,65 @@ async def test_start_with_referral():
         repo_instance.create_user.assert_called_once()
         call_kwargs = repo_instance.create_user.call_args[1]
         assert call_kwargs.get("referred_by") == referrer_id
+
+
+@pytest.mark.asyncio
+async def test_back_to_menu_fetches_real_tier():
+    user = MagicMock()
+    user.subscription_tier = "pro"
+
+    mock_session = AsyncMock()
+
+    async def _mock_gen():
+        yield mock_session
+
+    repo_instance = AsyncMock()
+    repo_instance.get_by_telegram_id = AsyncMock(return_value=user)
+
+    with (
+        patch("src.database.get_async_session", _mock_gen),
+        patch(
+            "src.repositories.user_repository.UserRepository",
+            return_value=repo_instance,
+        ),
+    ):
+        callback = _make_callback()
+        state = _make_fsm_state()
+
+        from src.bot.handlers.registration import callback_back_to_menu
+
+        await callback_back_to_menu(callback, state)
+
+        callback.message.edit_text.assert_called_once()
+        text = callback.message.edit_text.call_args[0][0]
+        assert "Pro" in text
+        assert "Free" not in text
+
+
+@pytest.mark.asyncio
+async def test_back_to_menu_shows_free_when_user_not_found():
+    mock_session = AsyncMock()
+
+    async def _mock_gen():
+        yield mock_session
+
+    repo_instance = AsyncMock()
+    repo_instance.get_by_telegram_id = AsyncMock(return_value=None)
+
+    with (
+        patch("src.database.get_async_session", _mock_gen),
+        patch(
+            "src.repositories.user_repository.UserRepository",
+            return_value=repo_instance,
+        ),
+    ):
+        callback = _make_callback()
+        state = _make_fsm_state()
+
+        from src.bot.handlers.registration import callback_back_to_menu
+
+        await callback_back_to_menu(callback, state)
+
+        callback.message.edit_text.assert_called_once()
+        text = callback.message.edit_text.call_args[0][0]
+        assert "Free" in text

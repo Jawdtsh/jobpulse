@@ -1,9 +1,9 @@
 import logging
 import time
-from collections import defaultdict
 
 from aiogram import BaseMiddleware
 from aiogram.types import CallbackQuery
+from cachetools import TTLCache
 
 logger = logging.getLogger(__name__)
 
@@ -29,8 +29,7 @@ class AuthMiddleware(BaseMiddleware):
 class RateLimiterMiddleware(BaseMiddleware):
     def __init__(self, rate_limit: int = 30):
         self._rate_limit = rate_limit
-        self._user_timestamps: dict[int, list[float]] = defaultdict(list)
-        self._queue: dict[int, list] = defaultdict(list)
+        self._user_timestamps: TTLCache = TTLCache(maxsize=10000, ttl=60)
 
     async def __call__(self, handler, event, data):
         user = getattr(event, "from_user", None)
@@ -38,9 +37,8 @@ class RateLimiterMiddleware(BaseMiddleware):
             return await handler(event, data)
 
         now = time.monotonic()
-        timestamps = self._user_timestamps[user.id]
+        timestamps = self._user_timestamps.get(user.id, [])
         timestamps = [t for t in timestamps if now - t < 1.0]
-        self._user_timestamps[user.id] = timestamps
 
         if len(timestamps) >= self._rate_limit:
             if isinstance(event, CallbackQuery):
@@ -50,12 +48,5 @@ class RateLimiterMiddleware(BaseMiddleware):
             return None
 
         timestamps.append(now)
-        return await handler(event, data)
-
-
-class CallbackValidationMiddleware(BaseMiddleware):
-    async def __call__(self, handler, event, data):
-        if isinstance(event, CallbackQuery):
-            if event.message and event.message.reply_markup:
-                pass
+        self._user_timestamps[user.id] = timestamps
         return await handler(event, data)

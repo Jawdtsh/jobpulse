@@ -29,21 +29,18 @@ async def cmd_subscribe(message: Message):
         tier = user.subscription_tier.lower()
         tier_name = tier.title()
 
-        lines = [t("subscribe_title", locale, current_tier=tier_name)]
-        lines.append("")
-        lines.append(
-            t("subscribe_free" if tier == "free" else "subscribe_free", locale)
-        )
-        if tier == "free":
-            lines[3] = "📌 " + lines[3]
-        lines.append("")
-        lines.append(t("subscribe_basic", locale))
-        if tier == "basic":
-            lines[5] = "📌 " + lines[5]
-        lines.append("")
-        lines.append(t("subscribe_pro", locale))
-        if tier == "pro":
-            lines[7] = "📌 " + lines[7]
+        tiers_info = [
+            ("free", "subscribe_free"),
+            ("basic", "subscribe_basic"),
+            ("pro", "subscribe_pro"),
+        ]
+        lines = [t("subscribe_title", locale, current_tier=tier_name), ""]
+        for tier_key, msg_key in tiers_info:
+            text = t(msg_key, locale)
+            if tier == tier_key:
+                text = "📌 " + text
+            lines.extend([text, ""])
+        lines.pop()
 
         await message.answer(
             "\n".join(lines),

@@ -30,10 +30,13 @@ async def main() -> None:
 
     from src.bot.health import start_health_server
 
-    _ = asyncio.create_task(start_health_server())
+    health_task = asyncio.create_task(start_health_server())
 
     logger.info("Starting bot polling...")
-    await dp.start_polling(bot)
+    try:
+        await dp.start_polling(bot)
+    finally:
+        health_task.cancel()
 
 
 if __name__ == "__main__":

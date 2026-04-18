@@ -1,7 +1,7 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
-from sqlalchemy import select, func
+from sqlalchemy import delete, select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from src.models.saved_job import SavedJob
 from src.repositories.base import AbstractRepository
@@ -26,7 +26,6 @@ class SavedJobRepository(AbstractRepository[SavedJob]):
         user_id: uuid.UUID,
         skip: int = 0,
         limit: int = 5,
-        min_similarity: float | None = None,
         days: int | None = None,
     ) -> list[SavedJob]:
         stmt = (
@@ -36,6 +35,9 @@ class SavedJobRepository(AbstractRepository[SavedJob]):
             .offset(skip)
             .limit(limit)
         )
+        if days is not None:
+            cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+            stmt = stmt.where(SavedJob.saved_at >= cutoff)
         result = await self._session.execute(stmt)
         return list(result.scalars().all())
 
@@ -56,8 +58,9 @@ class SavedJobRepository(AbstractRepository[SavedJob]):
         )
 
     async def unsave_job(self, user_id: uuid.UUID, job_id: uuid.UUID) -> bool:
-        saved = await self.get_by_user_and_job(user_id, job_id)
-        if saved is None:
-            return False
-        await self.delete(saved.id)
-        return True
+        stmt = delete(SavedJob).where(
+            SavedJob.user_id == user_id, SavedJob.job_id == job_id
+        )
+        result = await self._session.execute(stmt)
+        await self._session.flush()
+        return result.rowcount > 0

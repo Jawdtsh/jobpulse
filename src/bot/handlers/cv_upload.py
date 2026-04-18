@@ -86,10 +86,9 @@ async def handle_cv_file(message: Message, state: FSMContext):
                     reply_markup=confirm_replace_keyboard(),
                 )
                 return
-            else:
-                await message.answer(t("upload_error_limit", locale))
-                await state.clear()
-                return
+            await message.answer(t("upload_error_limit", locale))
+            await state.clear()
+            return
 
         await state.set_state(CVUploadState.processing_file)
         await _process_upload(message, state, user.id, document, session, locale)
@@ -152,7 +151,7 @@ async def callback_confirm_replace(callback: CallbackQuery, state: FSMContext):
                     file_size=file_size,
                 )
             else:
-                cv_id, title, text = await cv_service.upload_cv(
+                cv_id, _title, _text = await cv_service.upload_cv(
                     user_id=user.id,
                     file_data=buffer,
                     filename=file_name,
@@ -191,7 +190,7 @@ async def _process_upload(
     document: Document,
     session,
     locale: str,
-):
+) -> None:
     await message.answer(t("upload_processing", locale))
 
     try:
@@ -206,7 +205,7 @@ async def _process_upload(
         from src.services.cv_service import CVService
 
         cv_service = CVService(session)
-        cv_id, title, text = await cv_service.upload_cv(
+        cv_id, _title, _text = await cv_service.upload_cv(
             user_id=user_id,
             file_data=buffer,
             filename=document.file_name or "unknown",
@@ -233,6 +232,6 @@ async def _process_upload(
 
 
 @router.message(CVUploadState.waiting_for_file)
-async def handle_invalid_file(message: Message, state: FSMContext):
+async def handle_invalid_file(message: Message, _state: FSMContext):
     locale = get_locale(message.from_user.language_code)
     await message.answer(t("upload_error_format", locale))

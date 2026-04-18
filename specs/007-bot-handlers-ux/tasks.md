@@ -243,6 +243,85 @@
 
 ---
 
+## Phase 13: Bug Fixes — Spec Violations & Runtime Crashes
+
+**Purpose**: Fix four critical spec violations causing runtime crashes and incorrect UX behavior
+
+- [X] T084 Fix i18n get_locale() default to "ar" (FR-003) and logger.error → logger.exception (TRY400) in src/bot/utils/i18n.py
+- [X] T085 Fix SavedJob ondelete="SET NULL" → "CASCADE" with nullable=False and Mapped["Job | None"] → Mapped["Job"] in src/models/saved_job.py
+- [X] T086 Create Alembic migration 014_saved_job_cascade_fk.py to update FK constraint
+- [X] T087 Fix toggle notification handler: new_state=True → False when prefs is None (FR-034) in src/bot/handlers/settings.py
+- [X] T088 Extract _render_settings() helper to avoid unsafe callback.message.from_user mutation in src/bot/handlers/settings.py
+- [X] T089 Remove dead code in callback_upgrade_plan (RUF034) in src/bot/handlers/settings.py
+- [X] T090 Fix callback_back_to_menu hardcoding tier="Free" — fetch real tier from DB (FR-036) in src/bot/handlers/registration.py
+- [X] T091 Write unit tests for i18n fixes in tests/unit/bot/test_i18n.py
+- [X] T092 Write unit tests for settings fixes in tests/unit/bot/test_settings.py
+- [X] T093 Write unit tests for registration back_to_menu fix in tests/unit/bot/test_registration.py
+
+---
+
+## Phase 14: Bug Fixes — Dead Filter Parameters, Query Optimization, Null Safety
+
+**Purpose**: Fix dead filter parameters, optimize queries, and add defensive null checks in notification handlers
+
+- [X] T094 Remove dead min_similarity parameter and implement days filter in SavedJobRepository.get_saved_by_user (FR-026) in src/repositories/saved_job_repository.py
+- [X] T095 Optimize unsave_job from SELECT-then-DELETE to single delete().where() in src/repositories/saved_job_repository.py
+- [X] T096 Add exclude_dismissed parameter to MatchRepository.get_notified_matches_by_user to fix pagination bug in src/repositories/match_repository.py
+- [X] T097 Remove client-side dismissed filter from notified view in src/bot/handlers/saved_jobs.py
+- [X] T098 Remove dead _total_pages variable in src/bot/handlers/saved_jobs.py
+- [X] T099 Add logger.debug in edit-text fallback except block in src/bot/handlers/saved_jobs.py
+- [X] T100 Add null safety for job.description in callback_job_details in src/bot/handlers/job_notifications.py
+- [X] T101 Replace hardcoded "✅" with localized t("job_unsaved", locale) in unsave callback + add messages.json key
+- [X] T102 Replace try/except/pass with contextlib.suppress(Exception) in unsave and dismiss callbacks (SIM105, BLE001, S110)
+- [X] T103 Write unit tests for saved_job_repository days filter and unsave optimization
+- [X] T104 Write unit tests for match_repository exclude_dismissed parameter
+- [X] T105 Write unit tests for job_notifications null safety and localization fixes
+
+---
+
+## Phase 15: Bug Fixes — Dead Middleware, Inconsistent Constants, Lint Issues
+
+**Purpose**: Remove dead middleware, fix inconsistent constants, and resolve lint issues in infrastructure files
+
+- [X] T106 Delete empty CallbackValidationMiddleware class from src/bot/middlewares.py
+- [X] T107 Remove unused _queue dict from RateLimiterMiddleware.__init__ in src/bot/middlewares.py
+- [X] T108 Replace unbounded _user_timestamps dict with cachetools.TTLCache(maxsize=10000, ttl=60) in src/bot/middlewares.py
+- [X] T109 Add cachetools>=5.5.0 to requirements.txt
+- [X] T110 Replace hardcoded 900 with CLEANUP_THRESHOLD = SESSION_TTL + 300 in src/services/bot_session_service.py
+- [X] T111 Fix RUF006: store health_task reference and cancel after polling in main.py
+- [X] T112 Replace __import__("sqlalchemy").text("SELECT 1") with proper import in src/bot/health.py
+- [X] T113 Write unit tests for middleware TTLCache and deleted CallbackValidationMiddleware
+- [X] T114 Write unit tests for bot_session_service CLEANUP_THRESHOLD constant
+- [X] T115 Write unit tests for health.py proper sqlalchemy import
+
+---
+
+## Phase 16: Bug Fixes — Lint Violations, Wrong Locale Keys, Hardcoded Values
+
+**Purpose**: Fix all remaining lint violations, wrong locale keys, hardcoded values, and fragile code patterns across bot handlers
+
+- [X] T116 Fix RET505: remove unnecessary else after return in cv_upload.py
+- [X] T117 Fix RUF059: rename unused unpacked variables to _title, _text in cv_upload.py (2 locations)
+- [X] T118 Fix ANN202: add -> None return type to _process_upload in cv_upload.py
+- [X] T119 Fix ARG001: rename unused state to _state in handle_invalid_file in cv_upload.py
+- [X] T120 Fix wrong locale key: t("no_jobs") → t("no_cvs") in cv_management.py
+- [X] T121 Replace fragile t("help").split("\\n")[0] with t("cv_list_header") in cv_management.py (2 locations)
+- [X] T122 Add "no_cvs" and "cv_list_header" keys to messages.json
+- [X] T123 Fix typo "سيرات CV" → "سير ذاتية" in subscribe messages (3 occurrences)
+- [X] T124 Fix FR-003: replace hardcoded locale="ar" with get_locale() from update object in errors.py
+- [X] T125 Add state.clear() in error handler to prevent stuck FSM states in errors.py
+- [X] T126 Remove dead if-else "subscribe_free" if tier=="free" else "subscribe_free" in subscription.py
+- [X] T127 Replace fragile index-based lines manipulation with loop in subscription.py
+- [X] T128 Replace hardcoded "jobpulse_bot" with bot username from settings in referral.py
+- [X] T129 Add bot_username field to TelegramSettings in config/settings.py
+- [X] T130 Fix FBT001: make bool params keyword-only in keyboards.py (settings_keyboard, cv_details_keyboard, job_card_keyboard)
+- [X] T131 Update all call sites for keyword-only keyboard params (settings.py, cv_management.py)
+- [X] T132 Write tests for lint fixes and locale key corrections
+- [X] T133 Replace hardcoded "jobpulse_bot" with get_settings().telegram.bot_username in settings.py callback_share_referral
+- [X] T134 Fix async mock for scan_iter in test_cleanup_expired_sessions test
+
+---
+
 ## Dependencies & Execution Order
 
 ### Phase Dependencies

@@ -185,13 +185,11 @@ async def _render_jobs_list(
 
     skip = (page - 1) * JOBS_PER_PAGE
     lines = []
-    total_items = 0
     job_items = []
 
     async for session in get_async_session():
         if view == "saved":
             svc = SavedJobService(session)
-            total_items = await svc.count_saved(user_id)
             saved_jobs = await svc.get_saved_jobs(
                 user_id, skip=skip, limit=JOBS_PER_PAGE
             )
@@ -205,12 +203,9 @@ async def _render_jobs_list(
         elif view == "notified":
             match_repo = MatchRepository(session)
             all_matches = await match_repo.get_notified_matches_by_user(
-                user_id, skip=skip, limit=JOBS_PER_PAGE
+                user_id, skip=skip, limit=JOBS_PER_PAGE, exclude_dismissed=True
             )
-            total_items = await match_repo.count_notified(user_id)
             for m in all_matches:
-                if getattr(m, "is_dismissed", False):
-                    continue
                 job = m.job
                 if not job:
                     continue
@@ -233,8 +228,7 @@ async def _render_jobs_list(
                     JobMatch.is_dismissed.is_(True),
                 )
             )
-            result = await session.execute(stmt)
-            total_items = result.scalar_one()
+            await session.execute(stmt)
 
             stmt = (
                 select(JobMatch)
@@ -256,8 +250,6 @@ async def _render_jobs_list(
                 lines.append(f"💼 {job.title} @ {job.company} | 📊 {score}")
                 job_items.append((str(job.id), False))
 
-    _total_pages = max(1, (total_items + JOBS_PER_PAGE - 1) // JOBS_PER_PAGE)
-
     if not lines:
         text = t("no_jobs", locale) + f"\n({view})"
         kb = saved_jobs_view_keyboard()
@@ -273,7 +265,8 @@ async def _render_jobs_list(
     send_fn = message.edit_text if edit else message.answer
     try:
         await send_fn(text, reply_markup=kb)
-    except Exception:
+    except Exception as e:
+        logger.debug("Failed to edit message, falling back to answer: %s", e)
         await message.answer(text, reply_markup=kb)
 
 

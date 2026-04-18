@@ -67,13 +67,17 @@ class MatchRepository(AbstractRepository[JobMatch]):
         user_id: uuid.UUID,
         skip: int = 0,
         limit: int = 20,
+        exclude_dismissed: bool = True,
     ) -> list[JobMatch]:
+        conditions = [
+            JobMatch.user_id == user_id,
+            JobMatch.is_notified.is_(True),
+        ]
+        if exclude_dismissed:
+            conditions.append(JobMatch.is_dismissed.is_(False))
         stmt = (
             select(JobMatch)
-            .where(
-                JobMatch.user_id == user_id,
-                JobMatch.is_notified.is_(True),
-            )
+            .where(*conditions)
             .order_by(JobMatch.notified_at.desc())
             .offset(skip)
             .limit(limit)

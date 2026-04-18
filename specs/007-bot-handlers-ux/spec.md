@@ -316,3 +316,41 @@ When errors occur during bot interactions, users receive clear, actionable feedb
 - Accepted CV file formats are PDF, DOCX, and TXT with a maximum size of 5MB
 - BotSession is stored in Redis (key: `bot_session:{user_id}`, TTL: 600 seconds) with fields: current_state, last_activity, flow_data.
 - System is designed for horizontal scaling with stateless application tier and Redis-backed sessions.
+- saved_jobs.job_id FK uses ON DELETE CASCADE (not SET NULL) to avoid IntegrityError with nullable=False
+- Settings display logic uses a shared _render_settings() helper instead of mutating callback.message.from_user
+- Toggle notification defaults to OFF (False) when no preferences exist, matching the user's intent to toggle off
+- callback_back_to_menu fetches the user's actual subscription_tier from the database (FR-036)
+
+## Bug Fix Log (2026-04-18)
+
+- **Fix 1 (FR-003)**: `get_locale()` now returns `"ar"` for non-Arabic/unavailable languages (was `"en"`). Lint: `logger.error` → `logger.exception` in JSONDecodeError handler.
+- **Fix 2**: `saved_jobs.job_id` FK changed from `ondelete="SET NULL"` to `ondelete="CASCADE"` to prevent IntegrityError when a job is deleted (nullable=False rejects SET NULL). Type hint corrected to `Mapped["Job"]`. Migration `014_saved_job_cascade_fk.py` created.
+- **Fix 3 (FR-034)**: Toggle notification handler now sets `new_state=False` / `notification_enabled=False` when no prefs exist. Settings display extracted into `_render_settings()` helper to eliminate unsafe `callback.message.from_user` mutation. Dead code removed from `callback_upgrade_plan`.
+- **Fix 4 (FR-036)**: `callback_back_to_menu` now fetches actual `user.subscription_tier` from DB instead of hardcoding `"Free"`.
+
+## Bug Fix Log (2026-04-18) — Round 2
+
+- **Fix 1 (FR-026)**: `SavedJobRepository.get_saved_by_user` removed dead `min_similarity` parameter (similarity_score is on JobMatch, not SavedJob). Implemented `days` filter using `saved_at >= cutoff`. Optimized `unsave_job` from SELECT-then-DELETE to single `delete().where()` using `result.rowcount > 0`.
+- **Fix 2**: `MatchRepository.get_notified_matches_by_user` now accepts `exclude_dismissed: bool = True` parameter, filtering `is_dismissed` at the DB level to fix pagination. Removed client-side `[m for m in matches if not m.is_dismissed]` filter from `saved_jobs.py`. Removed dead `_total_pages` variable. Added `logger.debug` in edit-text fallback except block.
+- **Fix 3**: `callback_job_details` now guards against `job.description is None` (was `None[:1000]` TypeError). Unsave callback now uses `t("job_unsaved", locale)` instead of hardcoded "✅". Added `"job_unsaved"` key to messages.json. Replaced two `try/except/pass` blocks with `contextlib.suppress(Exception)` (SIM105, BLE001, S110).
+
+## Bug Fix Log (2026-04-18) — Round 3
+
+- **Fix 1**: Deleted empty `CallbackValidationMiddleware` class (body was `pass`). Removed unused `_queue` dict from `RateLimiterMiddleware.__init__`. Replaced unbounded `_user_timestamps: dict[int, list[float]]` with `cachetools.TTLCache(maxsize=10000, ttl=60)` to auto-evict stale entries and prevent memory leak. Added `cachetools>=5.5.0` to requirements.txt.
+- **Fix 2**: Added `CLEANUP_THRESHOLD = SESSION_TTL + 300` constant (900) in `bot_session_service.py`, replacing hardcoded `900` in `cleanup_expired_sessions`.
+- **Fix 3 (RUF006)**: `main.py` now stores `health_task = asyncio.create_task(start_health_server())` and calls `health_task.cancel()` in `finally` block to prevent premature GC cancellation.
+- **Fix 4**: `src/bot/health.py` replaced `__import__("sqlalchemy").text("SELECT 1")` with proper `from sqlalchemy import text` import at module level.
+
+## Bug Fix Log (2026-04-18) — Round 4
+
+- **Fix 1 (cv_upload.py)**: Removed unnecessary `else:` after `return` (RET505). Renamed unused unpacked variables to `_title`, `_text` (RUF059). Added `-> None` return type to `_process_upload` (ANN202). Renamed unused `state` to `_state` in `handle_invalid_file` (ARG001).
+- **Fix 2 (cv_management.py + messages.json)**: Replaced wrong `t("no_jobs")` with `t("no_cvs")`. Replaced fragile `t("help").split("\n")[0]` with `t("cv_list_header")`. Added `no_cvs` and `cv_list_header` keys to messages.json. Fixed typo "سيرات CV" → "سير ذاتية" in subscribe messages.
+- **Fix 3 (errors.py)**: Replaced hardcoded `locale = "ar"` with `get_locale()` using update object's `from_user.language_code` (FR-003). Added `state.clear()` in error handler to prevent stuck FSM states.
+- **Fix 4 (subscription.py)**: Removed dead `if tier == "free" else "subscribe_free"` ternary. Replaced fragile index-based list manipulation with a clean loop over `tiers_info`.
+- **Fix 5 (referral.py)**: Replaced hardcoded `"jobpulse_bot"` with `get_settings().telegram.bot_username` fallback to `message.bot.username`. Added `bot_username` field to `TelegramSettings`.
+- **Fix 6 (keyboards.py)**: Made boolean params keyword-only (`*` separator) in `settings_keyboard`, `cv_details_keyboard`, `job_card_keyboard`. Updated all call sites.
+
+## Bug Fix Log (2026-04-18) — Round 5
+
+- **Fix 1 (settings.py)**: Replaced hardcoded `"jobpulse_bot"` in `callback_share_referral` with `get_settings().telegram.bot_username or "jobpulse_bot"`.
+- **Fix 2 (test_bot_session_service.py)**: Replaced synchronous `MagicMock(return_value=iter([...]))` with proper async generator mock for `scan_iter` to ensure compatibility with redis.asyncio.

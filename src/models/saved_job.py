@@ -25,7 +25,7 @@ class SavedJob(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     )
     job_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("jobs.id", ondelete="SET NULL"),
+        ForeignKey("jobs.id", ondelete="CASCADE"),
         nullable=False,
     )
     saved_at: Mapped[datetime] = mapped_column(
@@ -35,4 +35,4 @@ class SavedJob(Base, UUIDPrimaryKeyMixin, TimestampMixin):
     )
 
     user: Mapped["User"] = relationship("User")
-    job: Mapped["Job | None"] = relationship("Job")
+    job: Mapped["Job"] = relationship("Job")

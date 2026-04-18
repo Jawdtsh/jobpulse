@@ -38,12 +38,12 @@ async def cmd_my_cvs(message: Message):
 
         if not cvs:
             await message.answer(
-                t("no_jobs", locale),
+                t("no_cvs", locale),
                 reply_markup=main_menu_keyboard(),
             )
             return
 
-        lines = [t("help", locale).split("\n")[0]]
+        lines = [t("cv_list_header", locale)]
         cv_data = []
         for i, cv in enumerate(cvs, 1):
             status = "✅ نشط" if cv.is_active else "⏸️ غير نشط"
@@ -97,7 +97,7 @@ async def callback_cv_details(callback: CallbackQuery):
 
         await callback.message.edit_text(
             "\n".join(lines),
-            reply_markup=cv_details_keyboard(cv_id, cv.is_active),
+            reply_markup=cv_details_keyboard(cv_id, is_active=cv.is_active),
         )
 
     await callback.answer()
@@ -126,7 +126,7 @@ async def callback_activate_cv(callback: CallbackQuery):
         if cv:
             await callback.message.edit_text(
                 t("cv_activated", locale),
-                reply_markup=cv_details_keyboard(cv_id, True),
+                reply_markup=cv_details_keyboard(cv_id, is_active=True),
             )
         else:
             await callback.answer(t("error_generic", locale), show_alert=True)
@@ -219,7 +219,7 @@ async def callback_back_to_cvs(callback: CallbackQuery):
             for cv in cvs
         ]
         await callback.message.edit_text(
-            "📁 " + t("help", locale).split("\n")[0],
+            "📁 " + t("cv_list_header", locale),
             reply_markup=cv_list_keyboard(cv_data),
         )
 

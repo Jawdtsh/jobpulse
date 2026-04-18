@@ -21,7 +21,7 @@ def _load_messages() -> dict[str, dict[str, str]]:
         logger.warning("Messages file not found at %s", messages_path)
         _MESSAGES = {}
     except json.JSONDecodeError:
-        logger.error("Invalid JSON in messages file %s", messages_path)
+        logger.exception("Invalid JSON in messages file %s", messages_path)
         _MESSAGES = {}
     return _MESSAGES
 
@@ -49,4 +49,4 @@ def bilingual(key: str, **kwargs) -> str:
 def get_locale(user_lang_code: str | None) -> str:
     if user_lang_code and user_lang_code.lower().startswith("ar"):
         return "ar"
-    return "en"
+    return "ar"

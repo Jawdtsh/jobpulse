@@ -6,6 +6,7 @@ from aiogram.types import Message
 
 from src.bot.keyboards import referral_keyboard
 from src.bot.utils.i18n import t, get_locale
+from config.settings import get_settings
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +29,8 @@ async def cmd_invite(message: Message):
             await message.answer(t("not_registered", locale))
             return
 
-        link = f"https://t.me/jobpulse_bot?start=ref_{user.referral_code}"
+        bot_username = get_settings().telegram.bot_username or message.bot.username
+        link = f"https://t.me/{bot_username}?start=ref_{user.referral_code}"
 
         stmt_total = (
             select(func.count())
@@ -59,5 +61,5 @@ async def cmd_invite(message: Message):
 
         await message.answer(
             text,
-            reply_markup=referral_keyboard(user.referral_code, "jobpulse_bot"),
+            reply_markup=referral_keyboard(user.referral_code, bot_username),
         )

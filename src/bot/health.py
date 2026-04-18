@@ -1,6 +1,7 @@
 import logging
 
 from aiohttp import web
+from sqlalchemy import text
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +27,7 @@ async def _health_handler(request: web.Request) -> web.Response:
         from src.database import get_async_session
 
         async for session in get_async_session():
-            await session.execute(__import__("sqlalchemy").text("SELECT 1"))
+            await session.execute(text("SELECT 1"))
             break
         checks["database"] = "ok"
     except Exception as e:

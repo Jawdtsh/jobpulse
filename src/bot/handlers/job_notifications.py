@@ -1,3 +1,4 @@
+import contextlib
 import logging
 import uuid
 
@@ -58,11 +59,9 @@ async def callback_unsave_job(callback: CallbackQuery):
         await svc.unsave(user.id, uuid.UUID(job_id))
         await session.commit()
 
-    await callback.answer("✅", show_alert=False)
-    try:
+    await callback.answer(t("job_unsaved", locale), show_alert=False)
+    with contextlib.suppress(Exception):
         await callback.message.delete()
-    except Exception:
-        pass
 
 
 @router.callback_query(F.data.startswith("job_details:"))
@@ -91,6 +90,7 @@ async def callback_job_details(callback: CallbackQuery):
         if job.salary_min and job.salary_max:
             salary = f"{job.salary_min}-{job.salary_max} {job.salary_currency}"
 
+        description = job.description or ""
         text = t(
             "job_details",
             locale,
@@ -98,9 +98,9 @@ async def callback_job_details(callback: CallbackQuery):
             location=job.location or "N/A",
             salary=salary or "N/A",
             match_percent="",
-            description=job.description[:1000] + "..."
-            if len(job.description) > 1000
-            else job.description,
+            description=description[:1000] + "..."
+            if len(description) > 1000
+            else description,
         )
 
         await callback.message.edit_text(text)
@@ -123,10 +123,8 @@ async def callback_dismiss_match(callback: CallbackQuery):
             await match_repo.update(match.id, is_dismissed=True)
             await session.commit()
 
-    try:
+    with contextlib.suppress(Exception):
         await callback.message.delete()
-    except Exception:
-        pass
 
     await callback.answer(t("job_dismissed", locale))
 

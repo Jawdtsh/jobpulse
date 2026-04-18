@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 
 SESSION_PREFIX = "bot_session:"
 SESSION_TTL = 600
+CLEANUP_THRESHOLD = SESSION_TTL + 300
 
 
 class BotSessionService:
@@ -94,7 +95,7 @@ class BotSessionService:
                     elapsed = (
                         datetime.now(timezone.utc) - last_activity
                     ).total_seconds()
-                    if elapsed > 900:
+                    if elapsed > CLEANUP_THRESHOLD:
                         await redis.delete(key)
                         cleaned += 1
             return cleaned

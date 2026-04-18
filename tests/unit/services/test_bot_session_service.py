@@ -1,9 +1,14 @@
 import json
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock
 
 import pytest
 
-from src.services.bot_session_service import BotSessionService, SESSION_PREFIX
+from src.services.bot_session_service import (
+    BotSessionService,
+    SESSION_PREFIX,
+    SESSION_TTL,
+    CLEANUP_THRESHOLD,
+)
 
 
 @pytest.fixture
@@ -100,9 +105,11 @@ async def test_update_activity(service, mock_redis):
 
 @pytest.mark.asyncio
 async def test_cleanup_expired_sessions(service, mock_redis):
-    mock_redis.scan_iter = MagicMock(
-        return_value=iter(["bot_session:1", "bot_session:2"])
-    )
+    async def mock_scan_iter(match):
+        for key in ["bot_session:1", "bot_session:2"]:
+            yield key
+
+    mock_redis.scan_iter = mock_scan_iter
     old_data = json.dumps(
         {
             "user_id": 1,
@@ -128,3 +135,8 @@ async def test_get_session_redis_error(service, mock_redis):
 async def test_set_session_redis_error(service, mock_redis):
     mock_redis.set = AsyncMock(side_effect=Exception("Redis down"))
     await service.set_session(123, "test")
+
+
+def test_cleanup_threshold_equals_session_ttl_plus_300():
+    assert CLEANUP_THRESHOLD == SESSION_TTL + 300
+    assert CLEANUP_THRESHOLD == 900

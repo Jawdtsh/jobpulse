@@ -95,12 +95,21 @@ async def cmd_help(message: Message):
 async def callback_back_to_menu(callback: CallbackQuery, state: FSMContext):
     await state.clear()
     locale = get_locale(callback.from_user.language_code)
+
+    from src.database import get_async_session
+    from src.repositories.user_repository import UserRepository
+
+    async for session in get_async_session():
+        user_repo = UserRepository(session)
+        user = await user_repo.get_by_telegram_id(callback.from_user.id)
+        tier = user.subscription_tier.title() if user else "Free"
+
     await callback.message.edit_text(
         t(
             "welcome_back",
             locale,
             first_name=callback.from_user.first_name or "User",
-            tier="Free",
+            tier=tier,
         ),
         reply_markup=main_menu_keyboard(),
     )
