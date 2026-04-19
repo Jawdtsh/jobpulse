@@ -180,3 +180,176 @@ def job_card_keyboard(job_id: str, *, is_saved: bool) -> InlineKeyboardMarkup:
     builder.button(text="📋 تفاصيل (Details)", callback_data=f"job_details:{job_id}")
     builder.adjust(2)
     return builder.as_markup()
+
+
+def cover_letter_keyboard(job_id: str) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(
+        text="📝 خطاب تغطية (Cover Letter)",
+        callback_data=f"cover_letter:start:{job_id}",
+    )
+    return builder.as_markup()
+
+
+def cover_letter_customization_keyboard(
+    tone: str = "professional",
+    length: str = "medium",
+    focus: str = "all",
+    language: str = "english",
+) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+
+    def _marker(current: str, value: str) -> str:
+        return " ✅" if current == value else ""
+
+    builder.button(
+        text=f"Formal{_marker(tone, 'formal')}",
+        callback_data="cl_tone:formal",
+    )
+    builder.button(
+        text=f"Casual{_marker(tone, 'casual')}",
+        callback_data="cl_tone:casual",
+    )
+    builder.button(
+        text=f"Professional{_marker(tone, 'professional')}",
+        callback_data="cl_tone:professional",
+    )
+    builder.adjust(3)
+
+    builder.button(
+        text=f"Short{_marker(length, 'short')}",
+        callback_data="cl_length:short",
+    )
+    builder.button(
+        text=f"Medium{_marker(length, 'medium')}",
+        callback_data="cl_length:medium",
+    )
+    builder.button(
+        text=f"Long{_marker(length, 'long')}",
+        callback_data="cl_length:long",
+    )
+    builder.adjust(3)
+
+    builder.button(
+        text=f"Skills{_marker(focus, 'skills')}",
+        callback_data="cl_focus:skills",
+    )
+    builder.button(
+        text=f"Experience{_marker(focus, 'experience')}",
+        callback_data="cl_focus:experience",
+    )
+    builder.button(
+        text=f"Education{_marker(focus, 'education')}",
+        callback_data="cl_focus:education",
+    )
+    builder.button(
+        text=f"All{_marker(focus, 'all')}",
+        callback_data="cl_focus:all",
+    )
+    builder.adjust(4)
+
+    builder.button(
+        text=f"🇬🇧 English{_marker(language, 'english')}",
+        callback_data="cl_lang:english",
+    )
+    builder.button(
+        text=f"🇸🇦 عربي{_marker(language, 'arabic')}",
+        callback_data="cl_lang:arabic",
+    )
+    builder.button(
+        text=f"🌍 Both{_marker(language, 'bilingual')}",
+        callback_data="cl_lang:bilingual",
+    )
+    builder.adjust(3)
+
+    builder.button(
+        text="✨ Generate Cover Letter",
+        callback_data="cl_generate",
+    )
+    builder.button(
+        text="❌ Cancel",
+        callback_data="cl_cancel",
+    )
+    builder.adjust(1, 2)
+
+    return builder.as_markup()
+
+
+def cover_letter_action_keyboard(cover_letter_id: str) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(
+        text="🔄 Regenerate",
+        callback_data=f"cover_letter:regenerate:{cover_letter_id}",
+    )
+    builder.button(
+        text="📋 Copy Text",
+        callback_data=f"cover_letter:copy:{cover_letter_id}",
+    )
+    builder.button(
+        text="🏠 Menu",
+        callback_data="back_to_menu",
+    )
+    builder.adjust(2, 1)
+    return builder.as_markup()
+
+
+def quota_exhausted_keyboard() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(
+        text="⏰ Wait for Reset",
+        callback_data="cover_letter:wait",
+    )
+    builder.button(
+        text="💰 Purchase Extra",
+        callback_data="cover_letter:purchase:menu",
+    )
+    builder.button(
+        text="⬆️ Upgrade Plan",
+        callback_data="upgrade_plan:basic",
+    )
+    builder.button(
+        text="🏠 Menu",
+        callback_data="back_to_menu",
+    )
+    builder.adjust(2, 2)
+    return builder.as_markup()
+
+
+def purchase_packs_keyboard() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(
+        text="$0.50 - 5 generations",
+        callback_data="cover_letter:purchase:small",
+    )
+    builder.button(
+        text="$1.00 - 12 generations",
+        callback_data="cover_letter:purchase:medium",
+    )
+    builder.button(
+        text="$3.00 - 40 generations",
+        callback_data="cover_letter:purchase:large",
+    )
+    builder.button(
+        text="🔙 Back",
+        callback_data="cover_letter:purchase:menu",
+    )
+    builder.adjust(1, 2)
+    return builder.as_markup()
+
+
+def cv_warning_keyboard(job_id: str) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(
+        text="✅ Generate Anyway",
+        callback_data=f"cl_generate_anyway:{job_id}",
+    )
+    builder.button(
+        text="✏️ Edit CV First",
+        callback_data="menu:upload_cv",
+    )
+    builder.button(
+        text="❌ Cancel",
+        callback_data="cl_cancel",
+    )
+    builder.adjust(2, 1)
+    return builder.as_markup()

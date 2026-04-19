@@ -13,9 +13,12 @@ from src.repositories.subscription_repository import SubscriptionRepository
 from src.repositories.telegram_session_repository import TelegramSessionRepository
 from src.repositories.user_repository import UserRepository
 from src.repositories.saved_job_repository import SavedJobRepository
+from src.repositories.user_quota_tracking_repository import (
+    UserQuotaTrackingRepository,
+)
 
 __all__ = [
-    "ArchivedJobRepository",
+    "ArchivedJob",
     "ChannelRepository",
     "AbstractRepository",
     "CoverLetterRepository",
@@ -30,4 +33,5 @@ __all__ = [
     "TelegramSessionRepository",
     "UserRepository",
     "SavedJobRepository",
+    "UserQuotaTrackingRepository",
 ]

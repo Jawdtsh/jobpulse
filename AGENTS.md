@@ -1,6 +1,6 @@
 ﻿# jobpulse Development Guidelines
 
-Auto-generated from all feature plans. Last updated: 2026-04-16
+Auto-generated from all feature plans. Last updated: 2026-04-19
 
 ## Active Technologies
 - Python 3.12+ + Pydantic v2 (BaseSettings), python-dotenv, cryptography (Fernet validation) (002-settings-config-layer)
@@ -15,6 +15,7 @@ Auto-generated from all feature plans. Last updated: 2026-04-16
 - Redis (existing, via settings.redis.redis_url) (006-celery-to-taskiq-migration)
 - Python 3.12+ + aiogram 3.x (Telegram Bot Framework), SQLAlchemy 2.0 async (via existing repositories), Redis (session state, rate limiting) (007-bot-handlers-ux)
 - PostgreSQL 16 + pgvector (existing), Redis (BotSession state, rate limiting) (007-bot-handlers-ux)
+- Python 3.12+ + FastAPI, aiogram 3.x, Google Generative AI (gemini-1.5-flash/pro), SQLAlchemy 2.0 async, PostgreSQL 16 with pgvector (008-ai-cover-letter-gen)
 
 - Python 3.12+ + FastAPI, SQLAlchemy 2.0 async, asyncpg, Alembic, pgvector, Fernet (cryptography) (001-database-schema)
 
@@ -35,7 +36,7 @@ cd src; pytest; ruff check .
 Python 3.12+: Follow standard conventions
 
 ## Recent Changes
-- 007-bot-handlers-ux: Added Python 3.12+ + aiogram 3.x (Telegram Bot Framework), SQLAlchemy 2.0 async (via existing repositories), Redis (session state, rate limiting)
+- 008-ai-cover-letter-gen: Added Python 3.12+ + FastAPI, aiogram 3.x, Google Generative AI (gemini-1.5-flash/pro), SQLAlchemy 2.0 async, PostgreSQL 16 with pgvector
 - 007-bot-handlers-ux: Added Python 3.12+ + aiogram 3.x (Telegram Bot Framework), SQLAlchemy 2.0 async (via existing repositories), Redis (session state, rate limiting)
 - 007-bot-handlers-ux: Added Python 3.12+ + aiogram 3.x (Telegram Bot Framework), SQLAlchemy 2.0 async (via existing repositories), Redis (session state, rate limiting)
 
