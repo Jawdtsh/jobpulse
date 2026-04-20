@@ -202,5 +202,13 @@
     "cl_coming_soon": {
         "ar": "قيد التطوير - الدفع المتاح قريباً",
         "en": "Coming soon - Payment available soon"
+    },
+    "cl_error_job_deleted": {
+        "ar": "❌ الوظيفة المرتبطة بهذا الخطاب لم تعد متاحة.",
+        "en": "❌ The job associated with this cover letter is no longer available."
+    },
+    "cl_error_decrypt_failed": {
+        "ar": "❌ حدث خطأ في قراءة سيرتك الذاتية. حاول رفعها مرة أخرى.",
+        "en": "❌ Failed to read your CV. Try re-uploading it."
     }
 }

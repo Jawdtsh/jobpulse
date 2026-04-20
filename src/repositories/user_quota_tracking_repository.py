@@ -2,7 +2,7 @@ import uuid
 from datetime import date
 from typing import Optional
 
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.models.user_quota_tracking import UserQuotaTracking
@@ -47,11 +47,39 @@ class UserQuotaTrackingRepository(AbstractRepository[UserQuotaTracking]):
         user_id: uuid.UUID,
         damascus_date: date,
     ) -> int:
-        record = await self.get_or_create_today(user_id, damascus_date)
-        record.daily_used += 1
+        stmt = (
+            update(UserQuotaTracking)
+            .where(
+                UserQuotaTracking.user_id == user_id,
+                UserQuotaTracking.date == damascus_date,
+            )
+            .values(daily_used=UserQuotaTracking.daily_used + 1)
+            .returning(UserQuotaTracking.daily_used)
+        )
+        result = await self._session.execute(stmt)
         await self._session.flush()
-        await self._session.refresh(record)
-        return record.daily_used
+        row = result.scalar_one_or_none()
+        return row if row else 0
+
+    async def decrement_daily_used(
+        self,
+        user_id: uuid.UUID,
+        damascus_date: date,
+    ) -> int:
+        stmt = (
+            update(UserQuotaTracking)
+            .where(
+                UserQuotaTracking.user_id == user_id,
+                UserQuotaTracking.date == damascus_date,
+                UserQuotaTracking.daily_used > 0,
+            )
+            .values(daily_used=UserQuotaTracking.daily_used - 1)
+            .returning(UserQuotaTracking.daily_used)
+        )
+        result = await self._session.execute(stmt)
+        await self._session.flush()
+        row = result.scalar_one_or_none()
+        return row if row is not None else 0
 
     async def add_purchased_extra(
         self,

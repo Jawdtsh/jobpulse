@@ -6,6 +6,7 @@ from zoneinfo import ZoneInfo
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from config.settings import get_settings
 from src.repositories.user_quota_tracking_repository import (
     UserQuotaTrackingRepository,
 )
@@ -13,12 +14,6 @@ from src.repositories.user_quota_tracking_repository import (
 logger = logging.getLogger(__name__)
 
 DAMASCUS_TZ = ZoneInfo("Asia/Damascus")
-
-DAILY_LIMITS = {
-    "free": 3,
-    "basic": 15,
-    "pro": 50,
-}
 
 
 def get_damascus_date() -> date:
@@ -43,7 +38,9 @@ class QuotaService:
         self._repo = UserQuotaTrackingRepository(session)
 
     async def get_daily_limit(self, tier: str) -> int:
-        return DAILY_LIMITS.get(tier, DAILY_LIMITS["free"])
+        settings = get_settings()
+        limits = settings.cover_letter.daily_limits
+        return limits.get(tier.lower(), limits.get("free", 3))
 
     async def get_remaining_quota(
         self,
@@ -55,8 +52,7 @@ class QuotaService:
             damascus_date = get_damascus_date()
         record = await self._repo.get_today(user_id, damascus_date)
         if record is None:
-            daily_limit = await self.get_daily_limit(tier)
-            return daily_limit
+            record = await self._repo.get_or_create_today(user_id, damascus_date, tier)
         daily_limit = await self.get_daily_limit(tier)
         used = record.daily_used
         extra = record.purchased_extra
@@ -78,7 +74,18 @@ class QuotaService:
     ) -> int:
         if damascus_date is None:
             damascus_date = get_damascus_date()
+        await self._repo.get_or_create_today(user_id, damascus_date, tier)
         return await self._repo.increment_daily_used(user_id, damascus_date)
+
+    async def decrement_daily_used(
+        self,
+        user_id,
+        tier: str,
+        damascus_date: date | None = None,
+    ) -> int:
+        if damascus_date is None:
+            damascus_date = get_damascus_date()
+        return await self._repo.decrement_daily_used(user_id, damascus_date)
 
     async def add_purchased_extra(
         self,

@@ -49,6 +49,10 @@ async def test_has_quota_insufficient(service, mock_repo):
 async def test_get_remaining_quota_no_record(service, mock_repo):
     user_id = uuid.uuid4()
     mock_repo.get_today = AsyncMock(return_value=None)
+    created = MagicMock()
+    created.daily_used = 0
+    created.purchased_extra = 0
+    mock_repo.get_or_create_today = AsyncMock(return_value=created)
 
     result = await service.get_remaining_quota(user_id, "free")
     assert result == 3
@@ -69,11 +73,34 @@ async def test_get_remaining_quota_with_usage(service, mock_repo):
 @pytest.mark.asyncio
 async def test_increment_daily_used(service, mock_repo):
     user_id = uuid.uuid4()
+    mock_repo.get_or_create_today = AsyncMock(return_value=MagicMock())
     mock_repo.increment_daily_used = AsyncMock(return_value=1)
 
     result = await service.increment_daily_used(user_id, "free")
     assert result == 1
+    mock_repo.get_or_create_today.assert_called_once()
     mock_repo.increment_daily_used.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_increment_daily_used_ensures_row_exists(service, mock_repo):
+    user_id = uuid.uuid4()
+    mock_repo.get_or_create_today = AsyncMock(return_value=MagicMock())
+    mock_repo.increment_daily_used = AsyncMock(return_value=1)
+
+    await service.increment_daily_used(user_id, "free")
+
+    call_order = []
+    mock_repo.get_or_create_today.side_effect = lambda *a, **kw: (
+        call_order.append("create") or MagicMock()
+    )
+    mock_repo.increment_daily_used.side_effect = lambda *a, **kw: (
+        call_order.append("increment") or 1
+    )
+    call_order.clear()
+
+    await service.increment_daily_used(user_id, "free")
+    assert call_order == ["create", "increment"]
 
 
 @pytest.mark.asyncio
@@ -122,3 +149,40 @@ async def test_midnight_countdown():
 
     countdown = get_midnight_countdown_seconds()
     assert 0 < countdown <= 86400
+
+
+@pytest.mark.asyncio
+async def test_decrement_daily_used(service, mock_repo):
+    user_id = uuid.uuid4()
+    mock_repo.decrement_daily_used = AsyncMock(return_value=2)
+
+    result = await service.decrement_daily_used(user_id, "free")
+    assert result == 2
+    mock_repo.decrement_daily_used.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_get_remaining_quota_no_record_creates_it(service, mock_repo):
+    user_id = uuid.uuid4()
+    mock_repo.get_today = AsyncMock(return_value=None)
+    created = MagicMock()
+    created.daily_used = 0
+    created.purchased_extra = 5
+    mock_repo.get_or_create_today = AsyncMock(return_value=created)
+
+    result = await service.get_remaining_quota(user_id, "free")
+    mock_repo.get_or_create_today.assert_called_once()
+    assert result == 8
+
+
+@pytest.mark.asyncio
+async def test_has_quota_no_record_creates_and_checks(service, mock_repo):
+    user_id = uuid.uuid4()
+    mock_repo.get_today = AsyncMock(return_value=None)
+    created = MagicMock()
+    created.daily_used = 0
+    created.purchased_extra = 0
+    mock_repo.get_or_create_today = AsyncMock(return_value=created)
+
+    result = await service.has_quota(user_id, "free")
+    assert result is True

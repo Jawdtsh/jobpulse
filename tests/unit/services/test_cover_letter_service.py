@@ -46,7 +46,7 @@ async def test_generate_success(service, mock_repo):
     job_id = uuid.uuid4()
     cv_id = uuid.uuid4()
 
-    with patch("src.services.cover_letter_service.AIProviderService") as mock_ai_cls:
+    with patch("src.services.ai_provider_service.AIProviderService") as mock_ai_cls:
         mock_ai = AsyncMock()
         mock_ai.call_model = AsyncMock(return_value="Dear Hiring Manager...")
         mock_ai_cls.return_value = mock_ai
@@ -174,3 +174,40 @@ def test_check_cv_completeness_no_score():
     is_complete, score = CoverLetterService.check_cv_completeness(cv)
     assert is_complete is False
     assert score == 0.0
+
+
+def test_extract_placeholders_returns_names_without_braces():
+    from src.services.cover_letter_service import _extract_placeholders
+
+    template = "Hello {name}, your {job_title} at {company}"
+    result = _extract_placeholders(template)
+    assert result == ["name", "job_title", "company"]
+
+
+def test_extract_placeholders_no_double_strip():
+    from src.services.cover_letter_service import (
+        _extract_placeholders,
+        REQUIRED_PLACEHOLDERS,
+    )
+
+    template = "{job_title} {company} {location} {job_description} {cv_content} {user_name} {tone} {length} {focus} {language}"
+    found = set(_extract_placeholders(template))
+    assert found == REQUIRED_PLACEHOLDERS
+
+
+def test_decrypt_cv_text_raises_on_failure():
+    from src.services.cover_letter_service import _decrypt_cv_text
+
+    cv = MagicMock()
+    cv.content = b"invalid_data"
+    with pytest.raises(ValueError, match="Failed to decrypt CV content"):
+        _decrypt_cv_text(cv)
+
+
+def test_decrypt_cv_text_returns_empty_for_none():
+    from src.services.cover_letter_service import _decrypt_cv_text
+
+    cv = MagicMock()
+    cv.content = None
+    result = _decrypt_cv_text(cv)
+    assert result == ""

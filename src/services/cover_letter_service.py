@@ -5,6 +5,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from config.settings import get_settings
 from src.repositories.cover_letter_repository import CoverLetterRepository
+from src.repositories.job_repository import JobRepository
+from src.repositories.cv_repository import CVRepository
+from src.utils.encryption import decrypt_data
 
 logger = logging.getLogger(__name__)
 
@@ -64,9 +67,7 @@ class CoverLetterService:
             logger.error("Prompt template not found at %s, using default", path)
             return DEFAULT_PROMPT
         content = path.read_text(encoding="utf-8")
-        missing = REQUIRED_PLACEHOLDERS - set(
-            p[1:-1] for p in _extract_placeholders(content)
-        )
+        missing = REQUIRED_PLACEHOLDERS - set(_extract_placeholders(content))
         if missing:
             logger.error(
                 "Prompt template missing placeholders: %s, using default",
@@ -161,12 +162,20 @@ class CoverLetterService:
 
         self._validate_options(new_tone, new_length, new_focus, new_language)
 
+        job_repo = JobRepository(self._session)
+        cv_repo = CVRepository(self._session)
+
+        job = await job_repo.get(record.job_id) if record.job_id else None
+        cv = await cv_repo.get(record.cv_id) if record.cv_id else None
+        cv_text = _decrypt_cv_text(cv) if cv else ""
+        job_desc = job.description or "" if job else ""
+
         prompt = self._build_prompt(
-            job_title="",
-            company="",
-            location="",
-            job_description="",
-            cv_content="",
+            job_title=job.title if job else "",
+            company=job.company if job else "",
+            location=job.location if job else "",
+            job_description=job_desc,
+            cv_content=cv_text,
             user_name="",
             tone=new_tone,
             length=LENGTH_LABELS.get(new_length, new_length),
@@ -239,3 +248,12 @@ def _extract_placeholders(template: str) -> list[str]:
     import re
 
     return re.findall(r"\{(\w+)\}", template)
+
+
+def _decrypt_cv_text(cv) -> str:
+    if cv.content is None:
+        return ""
+    try:
+        return decrypt_data(cv.content).decode("utf-8")
+    except Exception:
+        raise ValueError("Failed to decrypt CV content")

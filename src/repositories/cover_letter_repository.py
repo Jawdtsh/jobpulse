@@ -70,35 +70,6 @@ class CoverLetterRepository(AbstractRepository[CoverLetterLog]):
             counted_in_quota=counted_in_quota,
         )
 
-    async def check_quota_available(
-        self,
-        user_id: uuid.UUID,
-        monthly_limit: int,
-    ) -> bool:
-        logs = await self.get_logs_for_update(user_id)
-        return len(logs) < monthly_limit
-
-    async def get_logs_for_update(
-        self,
-        user_id: uuid.UUID,
-        month: Optional[datetime] = None,
-    ) -> list[CoverLetterLog]:
-        if month is None:
-            month = datetime.now(timezone.utc)
-        month_start = month.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-        stmt = (
-            select(CoverLetterLog)
-            .where(
-                and_(
-                    CoverLetterLog.user_id == user_id,
-                    CoverLetterLog.generated_at >= month_start,
-                )
-            )
-            .with_for_update()
-        )
-        result = await self._session.execute(stmt)
-        return list(result.scalars().all())
-
     async def get_latest_for_job(
         self, user_id: uuid.UUID, job_id: uuid.UUID
     ) -> Optional[CoverLetterLog]:

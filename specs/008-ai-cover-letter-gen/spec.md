@@ -2,7 +2,7 @@
 
 **Feature Branch**: `008-ai-cover-letter-gen`  
 **Created**: 2026-04-18  
-**Status**: Draft (Clarifications Complete + Additional Clarities)  
+**Status**: Active (Post-implementation bugfixes applied)  
 **Input**: User description: "Build an AI-powered cover letter generation system that creates personalized, professional cover letters for job applications. Users can generate cover letters from job notifications or saved jobs, customize parameters (tone, length, focus, language), and regenerate with different settings. The system enforces daily quotas based on subscription tier (Free: 3/day, Basic: 15/day, Pro: 50/day) with Damascus timezone (Asia/Damascus) for daily reset at midnight. Generated cover letters are stored in the database with metadata for tracking and analytics."
 
 ## Clarifications
@@ -223,3 +223,29 @@ When a user CV lacks sufficient skills or experience data, the system warns them
 - Regeneration creates a NEW cover_letters record (not update existing)
 - Admin/test generations can bypass quota by setting counted_in_quota=false
 - CV data is processed with user consent; CV content sent to Gemini for generation but stored only as needed with user awareness in UI
+
+## Bugfixes Applied (2026-04-19)
+
+- **BF-001**: Removed stub `callback_cover_letter_start` from `job_notifications.py` that intercepted all `cover_letter:start:*` callbacks before the real handler in `cover_letter.py` could process them (aiogram router ordering issue)
+- **BF-002**: Added missing `CVUploadState`, `SettingsState`, and `MyJobsState` FSM classes to `src/bot/states.py` (required by cv_upload.py, settings.py, and saved_jobs.py handlers from SPEC-007)
+- **BF-003**: Fixed `__all__` export in `src/repositories/__init__.py`: changed `"ArchivedJob"` (model name) to `"ArchivedJobRepository"` (correct repository class name)
+- **BF-004**: Fixed `cv_warning_keyboard` callback_data from `cl_generate_anyway:{job_id}` to `cl_generate_anyway:job:{job_id}` — the handler splits on `:` and expects index 2 to be the job_id
+- **BF-005**: Replaced non-atomic read-modify-write `increment_daily_used` in `user_quota_tracking_repository.py` with a single SQL `UPDATE ... SET daily_used = daily_used + 1 RETURNING` to eliminate race condition
+- **BF-006**: Fixed quota race condition in `callback_generate` and `callback_regenerate` — quota is now incremented (reserved) BEFORE the slow AI call, and refunded via `decrement_daily_used` if generation fails or returns empty. Added `decrement_daily_used` method to `QuotaService` and `UserQuotaTrackingRepository`
+- **BF-007**: Added `UniqueConstraint("user_id", "date")` to `UserQuotaTracking` model as required by data-model.md, preventing duplicate rows from concurrent `get_or_create_today` calls
+- **BF-008**: Fixed `QuotaService.get_remaining_quota` to create the day record when none exists instead of returning only `daily_limit` (which ignored `purchased_extra` from other sources)
+- **BF-009**: Changed `cover_letter_customization_keyboard` default language from `"english"` to `"arabic"` per FR-008. Made `quota_exhausted_keyboard` conditionally hide the Upgrade button for Pro tier users
+- **BF-010**: Fixed `callback_generate_anyway` infinite loop — now sets `skip_cv_warning=True` in FSM state so `callback_generate` skips the CV completeness check on retry
+- **BF-011**: Fixed `cover_letter_customization_keyboard` layout — replaced multiple `builder.adjust()` calls (which cancel each other) with a single `builder.adjust(3, 3, 4, 3, 1, 1)` call at the end
+- **BF-012**: Fixed `CoverLetterService.regenerate` — now fetches original job/CV data via `JobRepository`/`CVRepository` instead of passing empty strings for all context fields
+- **BF-013**: Fixed `callback_regenerate` — now fetches latest cover letter ID after regeneration and uses it for the action keyboard and state update (was using stale old cl_id)
+- **BF-014**: Fixed `_extract_placeholders` double-stripping — removed `p[1:-1]` wrapper since `re.findall(r"\{(\w+)\}")` already returns names without braces
+- **BF-015**: Changed `_decrypt_cv` (handler) and `_decrypt_cv_text` (service) to raise `ValueError` on decryption failure instead of silently returning empty string (which wasted quota on meaningless AI calls)
+- **BF-016**: Added null `job_id` safety check in `callback_regenerate` — shows `cl_error_job_deleted` message and clears state if the original job was deleted
+- **BF-017**: Decomposed oversized handlers per Constitution III (20-line limit) — extracted `_check_user`, `_validate_quota`, `_validate_cv`, `_execute_generation`, `_display_result`, `_build_quota_exhausted_text` private helpers. Added job_id ownership validation in `_execute_generation` (security)
+- **BF-018**: Moved hardcoded `DAILY_LIMITS` dict from `quota_service.py` to `config/settings.py` `CoverLetterSettings.daily_limits` per Constitution V
+- **BF-019**: Removed dead code `check_quota_available` and `get_logs_for_update` from `CoverLetterRepository` (replaced by `UserQuotaTrackingRepository`)
+- **BF-020**: Fixed tests — changed `router.callbacks` to `router.callback_query.handlers` (correct aiogram v3 API), fixed `AIProviderService` patch path to target source module
+- **BF-021**: Added `cl_error_decrypt_failed` i18n key for decryption failure error path
+- **BF-022**: Fixed `QuotaService.increment_daily_used` reservation gap — now calls `get_or_create_today` before the atomic SQL increment to guarantee a row exists. Without this, the `UPDATE ... WHERE (user_id, date)` could affect 0 rows when no tracking record existed yet, silently failing to reserve quota
+- **BF-023**: Fixed `_validate_cv` helper passing `job_id=""` to `cv_warning_keyboard` — added `state: FSMContext` parameter, reads `job_id` from FSM state data, and passes it to the keyboard. Updated both call sites (`callback_cover_letter_start` and `callback_generate`) to pass `state`

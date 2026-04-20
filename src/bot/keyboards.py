@@ -195,7 +195,7 @@ def cover_letter_customization_keyboard(
     tone: str = "professional",
     length: str = "medium",
     focus: str = "all",
-    language: str = "english",
+    language: str = "arabic",
 ) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
 
@@ -214,7 +214,6 @@ def cover_letter_customization_keyboard(
         text=f"Professional{_marker(tone, 'professional')}",
         callback_data="cl_tone:professional",
     )
-    builder.adjust(3)
 
     builder.button(
         text=f"Short{_marker(length, 'short')}",
@@ -228,7 +227,6 @@ def cover_letter_customization_keyboard(
         text=f"Long{_marker(length, 'long')}",
         callback_data="cl_length:long",
     )
-    builder.adjust(3)
 
     builder.button(
         text=f"Skills{_marker(focus, 'skills')}",
@@ -246,7 +244,6 @@ def cover_letter_customization_keyboard(
         text=f"All{_marker(focus, 'all')}",
         callback_data="cl_focus:all",
     )
-    builder.adjust(4)
 
     builder.button(
         text=f"🇬🇧 English{_marker(language, 'english')}",
@@ -260,7 +257,6 @@ def cover_letter_customization_keyboard(
         text=f"🌍 Both{_marker(language, 'bilingual')}",
         callback_data="cl_lang:bilingual",
     )
-    builder.adjust(3)
 
     builder.button(
         text="✨ Generate Cover Letter",
@@ -270,7 +266,8 @@ def cover_letter_customization_keyboard(
         text="❌ Cancel",
         callback_data="cl_cancel",
     )
-    builder.adjust(1, 2)
+
+    builder.adjust(3, 3, 4, 3, 1, 1)
 
     return builder.as_markup()
 
@@ -293,7 +290,7 @@ def cover_letter_action_keyboard(cover_letter_id: str) -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
-def quota_exhausted_keyboard() -> InlineKeyboardMarkup:
+def quota_exhausted_keyboard(current_tier: str = "free") -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.button(
         text="⏰ Wait for Reset",
@@ -303,15 +300,19 @@ def quota_exhausted_keyboard() -> InlineKeyboardMarkup:
         text="💰 Purchase Extra",
         callback_data="cover_letter:purchase:menu",
     )
-    builder.button(
-        text="⬆️ Upgrade Plan",
-        callback_data="upgrade_plan:basic",
-    )
+    if current_tier != "pro":
+        builder.button(
+            text="⬆️ Upgrade Plan",
+            callback_data="upgrade_plan:basic",
+        )
     builder.button(
         text="🏠 Menu",
         callback_data="back_to_menu",
     )
-    builder.adjust(2, 2)
+    if current_tier != "pro":
+        builder.adjust(2, 2)
+    else:
+        builder.adjust(2, 1)
     return builder.as_markup()
 
 
@@ -341,7 +342,7 @@ def cv_warning_keyboard(job_id: str) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.button(
         text="✅ Generate Anyway",
-        callback_data=f"cl_generate_anyway:{job_id}",
+        callback_data=f"cl_generate_anyway:job:{job_id}",
     )
     builder.button(
         text="✏️ Edit CV First",

@@ -79,6 +79,44 @@
 - [x] T027a Create Alembic migration 015 for cover_letter_logs enhancements (cv_id, content, tone, length, focus_area, language, ai_model, generation_count, counted_in_quota)
 - [x] T027b Create Alembic migration 016 for user_quota_tracking table with unique index on (user_id, date)
 
+## Phase 11: Critical Bugfixes
+
+- [x] BF-001 Remove stub callback_cover_letter_start from job_notifications.py that blocks real cover_letter handler
+- [x] BF-002 Add missing CVUploadState, SettingsState, MyJobsState to src/bot/states.py
+- [x] BF-003 Fix __all__ export: ArchivedJob -> ArchivedJobRepository in src/repositories/__init__.py
+- [x] BF-004 Fix cv_warning_keyboard callback_data format to include job prefix for correct index parsing
+- [x] BF-005 Replace non-atomic increment_daily_used with atomic SQL UPDATE in user_quota_tracking_repository.py
+
+## Phase 12: Quota & Keyboard Bugfixes
+
+- [x] BF-006 Fix quota race condition: increment-before-generate with refund-on-failure in callback_generate and callback_regenerate
+- [x] BF-007 Add UniqueConstraint(user_id, date) to UserQuotaTracking model per data-model.md
+- [x] BF-008 Fix get_remaining_quota to create day record when None exists (was ignoring purchased_extra)
+- [x] BF-009 Fix keyboard defaults: arabic language per FR-008, conditional upgrade button for pro tier
+
+## Phase 13: Handler & Service Logic Bugfixes
+
+- [x] BF-010 Fix callback_generate_anyway infinite loop: add skip_cv_warning flag to skip CV completeness re-check
+- [x] BF-011 Fix cover_letter_customization_keyboard layout: single adjust(3,3,4,3,1,1) call instead of multiple canceling calls
+- [x] BF-012 Fix regenerate method: fetch job/CV data via repositories instead of empty strings
+- [x] BF-013 Fix callback_regenerate: use latest cover letter ID after regeneration for keyboard and state
+- [x] BF-014 Fix _extract_placeholders double-stripping: remove p[1:-1] wrapper
+- [x] BF-015 Fix _decrypt_cv/_decrypt_cv_text: raise ValueError instead of silent empty string on failure
+- [x] BF-016 Add null job_id safety in callback_regenerate with cl_error_job_deleted i18n key
+
+## Phase 14: Decomposition, Config & Dead Code
+
+- [x] BF-017 Decompose oversized handlers: extract _check_user, _validate_quota, _validate_cv, _execute_generation, _display_result helpers; add job_id ownership validation
+- [x] BF-018 Move DAILY_LIMITS from quota_service.py to CoverLetterSettings.daily_limits in config/settings.py
+- [x] BF-019 Remove dead code: check_quota_available and get_logs_for_update from CoverLetterRepository
+- [x] BF-020 Fix tests: router.callback_query.handlers, correct AIProviderService patch path
+- [x] BF-021 Add cl_error_decrypt_failed i18n key
+
+## Phase 15: Reservation & CV Validation Bugfixes
+
+- [x] BF-022 Fix QuotaService.increment_daily_used: call get_or_create_today before atomic increment to guarantee row exists
+- [x] BF-023 Fix _validate_cv: accept state parameter, read job_id from FSM state data, pass to cv_warning_keyboard
+
 ## Summary
 
 | Phase | User Story | Tasks |

@@ -114,3 +114,12 @@ async def test_dismiss_uses_contextlib_suppress():
     source = inspect.getsource(callback_dismiss_match)
     assert "contextlib.suppress" in source
     assert "try" not in source or "try:" not in source.split("contextlib")[0]
+
+
+def test_no_cover_letter_start_handler_in_job_notifications_router():
+    import inspect
+    from src.bot.handlers import job_notifications
+
+    source = inspect.getsource(job_notifications)
+    assert "cover_letter:start" not in source
+    assert "callback_cover_letter_start" not in source

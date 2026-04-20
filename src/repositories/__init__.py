@@ -18,7 +18,7 @@ from src.repositories.user_quota_tracking_repository import (
 )
 
 __all__ = [
-    "ArchivedJob",
+    "ArchivedJobRepository",
     "ChannelRepository",
     "AbstractRepository",
     "CoverLetterRepository",

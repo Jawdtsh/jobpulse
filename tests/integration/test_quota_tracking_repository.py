@@ -77,3 +77,62 @@ class TestUserQuotaTrackingRepository:
     ):
         result = await quota_repo.get_today(test_user.id, date(2025, 1, 1))
         assert result is None
+
+    @pytest.mark.asyncio
+    async def test_increment_daily_used_returns_zero_when_no_record(
+        self,
+        quota_repo: UserQuotaTrackingRepository,
+        test_user,
+    ):
+        result = await quota_repo.increment_daily_used(test_user.id, date(2026, 4, 20))
+        assert result == 0
+
+    @pytest.mark.asyncio
+    async def test_increment_daily_used_atomic_multi_increment(
+        self,
+        quota_repo: UserQuotaTrackingRepository,
+        test_user,
+        async_session: AsyncSession,
+    ):
+        damascus_date = date(2026, 4, 19)
+        await quota_repo.get_or_create_today(test_user.id, damascus_date, "free")
+        await async_session.flush()
+
+        first = await quota_repo.increment_daily_used(test_user.id, damascus_date)
+        assert first == 1
+
+        second = await quota_repo.increment_daily_used(test_user.id, damascus_date)
+        assert second == 2
+
+        third = await quota_repo.increment_daily_used(test_user.id, damascus_date)
+        assert third == 3
+
+    @pytest.mark.asyncio
+    async def test_decrement_daily_used(
+        self,
+        quota_repo: UserQuotaTrackingRepository,
+        test_user,
+        async_session: AsyncSession,
+    ):
+        damascus_date = date(2026, 4, 19)
+        await quota_repo.get_or_create_today(test_user.id, damascus_date, "free")
+        await async_session.flush()
+
+        await quota_repo.increment_daily_used(test_user.id, damascus_date)
+        await quota_repo.increment_daily_used(test_user.id, damascus_date)
+        result = await quota_repo.decrement_daily_used(test_user.id, damascus_date)
+        assert result == 1
+
+    @pytest.mark.asyncio
+    async def test_decrement_daily_used_will_not_go_below_zero(
+        self,
+        quota_repo: UserQuotaTrackingRepository,
+        test_user,
+        async_session: AsyncSession,
+    ):
+        damascus_date = date(2026, 4, 19)
+        await quota_repo.get_or_create_today(test_user.id, damascus_date, "free")
+        await async_session.flush()
+
+        result = await quota_repo.decrement_daily_used(test_user.id, damascus_date)
+        assert result == 0
