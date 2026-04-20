@@ -127,9 +127,3 @@ async def callback_dismiss_match(callback: CallbackQuery):
         await callback.message.delete()
 
     await callback.answer(t("job_dismissed", locale))
-
-
-@router.callback_query(F.data.startswith("cover_letter:"))
-async def callback_cover_letter(callback: CallbackQuery):
-    locale = get_locale(callback.from_user.language_code)
-    await callback.answer(t("coming_soon", locale))

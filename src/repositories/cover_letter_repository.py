@@ -45,37 +45,47 @@ class CoverLetterRepository(AbstractRepository[CoverLetterLog]):
         self,
         user_id: uuid.UUID,
         job_id: uuid.UUID,
+        cv_id: uuid.UUID | None = None,
+        content: str = "",
+        tone: str = "professional",
+        length: str = "medium",
+        focus_area: str = "all",
+        language: str = "english",
+        ai_model: str = "",
+        generation_count: int = 1,
+        counted_in_quota: bool = True,
     ) -> CoverLetterLog:
         return await self.create(
             user_id=user_id,
             job_id=job_id,
+            cv_id=cv_id,
+            content=content,
+            tone=tone,
+            length=length,
+            focus_area=focus_area,
+            language=language,
+            ai_model=ai_model,
+            generation_count=generation_count,
+            generated_at=datetime.now(timezone.utc),
+            counted_in_quota=counted_in_quota,
         )
 
-    async def check_quota_available(
-        self,
-        user_id: uuid.UUID,
-        monthly_limit: int,
-    ) -> bool:
-        logs = await self.get_logs_for_update(user_id)
-        return len(logs) < monthly_limit
-
-    async def get_logs_for_update(
-        self,
-        user_id: uuid.UUID,
-        month: Optional[datetime] = None,
-    ) -> list[CoverLetterLog]:
-        if month is None:
-            month = datetime.now(timezone.utc)
-        month_start = month.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    async def get_latest_for_job(
+        self, user_id: uuid.UUID, job_id: uuid.UUID
+    ) -> Optional[CoverLetterLog]:
         stmt = (
             select(CoverLetterLog)
             .where(
                 and_(
                     CoverLetterLog.user_id == user_id,
-                    CoverLetterLog.generated_at >= month_start,
+                    CoverLetterLog.job_id == job_id,
                 )
             )
-            .with_for_update()
+            .order_by(CoverLetterLog.generated_at.desc())
+            .limit(1)
         )
         result = await self._session.execute(stmt)
-        return list(result.scalars().all())
+        return result.scalar_one_or_none()
+
+    async def get_by_id(self, cover_letter_id: uuid.UUID) -> Optional[CoverLetterLog]:
+        return await self.get(cover_letter_id)

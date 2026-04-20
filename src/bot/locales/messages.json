@@ -162,5 +162,53 @@
     "job_matching_paused": {
         "ar": "⏸️ مطابقة الوظائف متوقفة - لا توجد سيرة ذاتية نشطة.",
         "en": "⏸️ Job matching paused - no active CV."
+    },
+    "cl_customize": {
+        "ar": "📝 تخصيص خطاب التغطية\n\nاختر الخيارات المناسبة ثم اضغط Generate.",
+        "en": "📝 Customize Cover Letter\n\nChoose your options then press Generate."
+    },
+    "cl_generating": {
+        "ar": "⏳ جاري توليد خطاب التغطية...",
+        "en": "⏳ Generating your cover letter..."
+    },
+    "cl_result": {
+        "ar": "📝 خطاب التغطية الخاص بك",
+        "en": "📝 Your Cover Letter"
+    },
+    "cl_quota_exhausted": {
+        "ar": "🚫 وصلت للحد اليومي!\n\nالمتبقي: {remaining} توليدات",
+        "en": "🚫 Daily Limit Reached!\n\nRemaining: {remaining} generations"
+    },
+    "cl_no_cv": {
+        "ar": "⚠️ لا توجد سيرة ذاتية نشطة. ارفع سيرة ذاتية أولاً.\n/upload_cv",
+        "en": "⚠️ No active CV. Please upload one first.\n/upload_cv"
+    },
+    "cl_cv_warning": {
+        "ar": "⚠️ سيرتك الذاتية تحتوي على معلومات محدودة (نتيجة: {score}%).\nخطاب التغطية قد يكون عاماً.\n\nهل تريد المتابعة؟",
+        "en": "⚠️ Your CV has limited information (score: {score}%).\nThe cover letter may be generic.\n\nContinue anyway?"
+    },
+    "cl_error": {
+        "ar": "❌ حدث خطأ أثناء توليد خطاب التغطية. حاول لاحقاً.",
+        "en": "❌ An error occurred while generating the cover letter. Please try again."
+    },
+    "cl_copied": {
+        "ar": "📋 تم النسخ!",
+        "en": "📋 Copied!"
+    },
+    "cl_purchase_title": {
+        "ar": "💰 شراء توليدات إضافية\n\nاختر الباقة المناسبة:",
+        "en": "💰 Purchase Extra Generations\n\nChoose a pack:"
+    },
+    "cl_coming_soon": {
+        "ar": "قيد التطوير - الدفع المتاح قريباً",
+        "en": "Coming soon - Payment available soon"
+    },
+    "cl_error_job_deleted": {
+        "ar": "❌ الوظيفة المرتبطة بهذا الخطاب لم تعد متاحة.",
+        "en": "❌ The job associated with this cover letter is no longer available."
+    },
+    "cl_error_decrypt_failed": {
+        "ar": "❌ حدث خطأ في قراءة سيرتك الذاتية. حاول رفعها مرة أخرى.",
+        "en": "❌ Failed to read your CV. Try re-uploading it."
     }
 }

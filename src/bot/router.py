@@ -11,6 +11,7 @@ from src.bot.handlers.settings import router as settings_router
 from src.bot.handlers.referral import router as referral_router
 from src.bot.handlers.subscription import router as subscription_router
 from src.bot.handlers.errors import router as errors_router
+from src.bot.handlers.cover_letter import router as cover_letter_router
 
 logger = logging.getLogger(__name__)
 
@@ -25,5 +26,6 @@ main_router.include_router(settings_router)
 main_router.include_router(referral_router)
 main_router.include_router(subscription_router)
 main_router.include_router(errors_router)
+main_router.include_router(cover_letter_router)
 
 logger.info("All bot handlers registered")

@@ -206,3 +206,12 @@ class TestMonitoredChannelModel:
         assert channel.title == "Job Postings Channel"
         assert channel.is_active
         assert channel.jobs_found == 0
+
+
+class TestUserQuotaTrackingModel:
+    def test_table_has_unique_constraint(self):
+        from src.models.user_quota_tracking import UserQuotaTracking
+
+        table_args = UserQuotaTracking.__table_args__
+        constraint_names = [c.name for c in table_args if hasattr(c, "name")]
+        assert "uq_user_quota_date" in constraint_names
