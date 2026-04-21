@@ -134,3 +134,17 @@ class ThresholdOutOfRangeError(Exception):
         self.context = context
         self.message = f"Threshold {value} is outside valid range 0.60-1.00"
         super().__init__(self.message)
+
+
+class InsufficientBalanceError(Exception):
+    def __init__(self, message: str = "Insufficient wallet balance", **context):
+        self.message = message
+        self.context = context
+        super().__init__(self.message)
+
+
+class WalletError(Exception):
+    def __init__(self, message: str = "Wallet operation failed", **context):
+        self.message = message
+        self.context = context
+        super().__init__(self.message)

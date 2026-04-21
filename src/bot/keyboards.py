@@ -135,13 +135,17 @@ def confirm_replace_keyboard() -> InlineKeyboardMarkup:
 def subscription_keyboard(current_tier: str) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     if current_tier != "basic":
-        builder.button(text="🥉 Basic - $7/شهر", callback_data="upgrade_plan:basic")
+        builder.button(
+            text="🥉 Basic - $10/شهر | Subscribe", callback_data="subscribe:basic"
+        )
     else:
-        builder.button(text="🥉 Basic ✅", callback_data="upgrade_plan:current")
+        builder.button(text="🥉 Basic ✅", callback_data="subscribe:current")
     if current_tier != "pro":
-        builder.button(text="🥇 Pro - $12/شهر", callback_data="upgrade_plan:pro")
+        builder.button(
+            text="🥇 Pro - $25/شهر | Subscribe", callback_data="subscribe:pro"
+        )
     else:
-        builder.button(text="🥇 Pro ✅", callback_data="upgrade_plan:current")
+        builder.button(text="🥇 Pro ✅", callback_data="subscribe:current")
     builder.button(text="🏠 القائمة (Menu)", callback_data="back_to_menu")
     builder.adjust(2, 1)
     return builder.as_markup()
@@ -353,4 +357,129 @@ def cv_warning_keyboard(job_id: str) -> InlineKeyboardMarkup:
         callback_data="cl_cancel",
     )
     builder.adjust(2, 1)
+    return builder.as_markup()
+
+
+def wallet_keyboard() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(
+        text="💳 شحن الرصيد | Top Up",
+        callback_data="wallet:top_up",
+    )
+    builder.button(
+        text="💸 سحب الرصيد | Withdraw",
+        callback_data="wallet:withdraw",
+    )
+    builder.button(
+        text="🏠 القائمة | Menu",
+        callback_data="back_to_menu",
+    )
+    builder.adjust(2, 1)
+    return builder.as_markup()
+
+
+def wallet_back_keyboard() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(
+        text="🔙 العودة | Back",
+        callback_data="wallet:back",
+    )
+    return builder.as_markup()
+
+
+def wallet_top_up_keyboard() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(
+        text="💳 شحن الرصيد | Top Up",
+        callback_data="wallet:top_up",
+    )
+    builder.button(
+        text="🏠 القائمة | Menu",
+        callback_data="back_to_menu",
+    )
+    builder.adjust(2)
+    return builder.as_markup()
+
+
+def subscription_confirm_keyboard(tier_id: str) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(
+        text="✅ تأكيد | Confirm",
+        callback_data="confirm:yes",
+    )
+    builder.button(
+        text="❌ إلغاء | Cancel",
+        callback_data="confirm:no",
+    )
+    builder.adjust(2)
+    return builder.as_markup()
+
+
+def admin_panel_keyboard() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(
+        text="🔍 بحث | Search",
+        callback_data="admin_cmd:search",
+    )
+    builder.button(
+        text="👥 المستخدمين | Users",
+        callback_data="admin_cmd:users",
+    )
+    builder.button(
+        text="📊 الإحصائيات | Stats",
+        callback_data="admin_cmd:stats",
+    )
+    builder.button(
+        text="📋 المعاملات | Transactions",
+        callback_data="admin_cmd:transactions",
+    )
+    builder.button(
+        text="🏠 القائمة | Menu",
+        callback_data="back_to_menu",
+    )
+    builder.adjust(2, 2, 1)
+    return builder.as_markup()
+
+
+def admin_user_actions_keyboard(user_id: str) -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(
+        text="📋 المعاملات | Transactions",
+        callback_data=f"admin_tx_history:{user_id}",
+    )
+    builder.button(
+        text="➕ إضافة رصيد | Add Balance",
+        callback_data=f"admin_add_balance:{user_id}",
+    )
+    builder.button(
+        text="➖ خصم رصيد | Deduct Balance",
+        callback_data=f"admin_deduct_balance:{user_id}",
+    )
+    builder.button(
+        text="🏠 القائمة | Menu",
+        callback_data="back_to_menu",
+    )
+    builder.adjust(2, 2)
+    return builder.as_markup()
+
+
+def generation_packs_keyboard() -> InlineKeyboardMarkup:
+    builder = InlineKeyboardBuilder()
+    builder.button(
+        text="$0.50 - 5 | Small",
+        callback_data="gen_pack:small",
+    )
+    builder.button(
+        text="$1.00 - 12 | Medium",
+        callback_data="gen_pack:medium",
+    )
+    builder.button(
+        text="$3.00 - 40 | Large",
+        callback_data="gen_pack:large",
+    )
+    builder.button(
+        text="🔙 العودة | Back",
+        callback_data="cover_letter:purchase:menu",
+    )
+    builder.adjust(1, 2)
     return builder.as_markup()

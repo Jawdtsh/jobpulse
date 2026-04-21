@@ -17,6 +17,10 @@ from src.models.user_preferences import UserPreferences
 from src.models.saved_job import SavedJob
 from src.models.language import Language
 from src.models.user_quota_tracking import UserQuotaTracking
+from src.models.user_wallet import UserWallet
+from src.models.wallet_transaction import WalletTransaction
+from src.models.subscription_history import SubscriptionHistory
+from src.models.admin_action_log import AdminActionLog
 
 __all__ = [
     "ArchivedJob",
@@ -39,4 +43,8 @@ __all__ = [
     "SavedJob",
     "Language",
     "UserQuotaTracking",
+    "UserWallet",
+    "WalletTransaction",
+    "SubscriptionHistory",
+    "AdminActionLog",
 ]

@@ -16,6 +16,12 @@ from src.repositories.saved_job_repository import SavedJobRepository
 from src.repositories.user_quota_tracking_repository import (
     UserQuotaTrackingRepository,
 )
+from src.repositories.wallet_repository import WalletRepository
+from src.repositories.transaction_repository import TransactionRepository
+from src.repositories.subscription_history_repository import (
+    SubscriptionHistoryRepository,
+)
+from src.repositories.admin_action_log_repository import AdminActionLogRepository
 
 __all__ = [
     "ArchivedJobRepository",
@@ -34,4 +40,8 @@ __all__ = [
     "UserRepository",
     "SavedJobRepository",
     "UserQuotaTrackingRepository",
+    "WalletRepository",
+    "TransactionRepository",
+    "SubscriptionHistoryRepository",
+    "AdminActionLogRepository",
 ]
