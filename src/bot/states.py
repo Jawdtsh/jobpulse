@@ -21,3 +21,14 @@ class CoverLetterGeneration(StatesGroup):
     generating = State()
     displayed = State()
     quota_exhausted = State()
+
+
+class WalletState(StatesGroup):
+    main = State()
+    top_up = State()
+    withdraw = State()
+
+
+class SubscribeState(StatesGroup):
+    select_tier = State()
+    confirm = State()

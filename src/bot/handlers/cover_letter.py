@@ -12,6 +12,7 @@ from src.bot.keyboards import (
     quota_exhausted_keyboard,
     purchase_packs_keyboard,
     cv_warning_keyboard,
+    wallet_top_up_keyboard,
 )
 from src.bot.utils.i18n import t, get_locale
 from src.services.quota_service import QuotaService, get_midnight_countdown_seconds
@@ -488,7 +489,51 @@ async def callback_purchase(callback: CallbackQuery, state: FSMContext):
         await callback.answer()
         return
 
-    await callback.answer(t("cl_coming_soon", locale), show_alert=True)
+    from src.database import get_async_session
+    from src.repositories.user_repository import UserRepository
+    from src.services.wallet_service import WalletService
+    from src.services.subscription_service import SubscriptionService
+    from src.services.quota_service import QuotaService
+    from src.services.exceptions import InsufficientBalanceError
+
+    async for session in get_async_session():
+        user_repo = UserRepository(session)
+        user = await user_repo.get_by_telegram_id(callback.from_user.id)
+        if not user:
+            await callback.answer(t("not_registered", locale), show_alert=True)
+            return
+
+        wallet_svc = WalletService(session)
+        sub_svc = SubscriptionService(session)
+        quota_svc = QuotaService(session)
+
+        try:
+            tx = await sub_svc.purchase_generation_pack(
+                user_id=user.id,
+                pack_id=pack,
+                wallet_service=wallet_svc,
+                quota_service=quota_svc,
+            )
+            await session.commit()
+
+            pack_config = sub_svc.get_pack_config(pack)
+            gens = pack_config["generations"] if pack_config else 0
+            await callback.message.edit_text(
+                f"✅ {t('cl_purchase_success', locale, generations=gens)}",
+                reply_markup=cover_letter_action_keyboard(str(tx.id) if tx else ""),
+            )
+        except InsufficientBalanceError:
+            wallet = await wallet_svc.get_or_create_wallet(user.id)
+            await session.commit()
+            await callback.message.edit_text(
+                f"❌ {t('subscribe_insufficient', locale)}\n"
+                f"{t('wallet_balance', locale)}: ${wallet.balance_usd:.2f}",
+                reply_markup=wallet_top_up_keyboard(),
+            )
+        except Exception as e:
+            logger.exception("Generation pack purchase failed: %s", e)
+            await callback.answer(t("error_generic", locale), show_alert=True)
+    await callback.answer()
 
 
 @router.callback_query(F.data == "cl_cancel")

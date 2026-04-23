@@ -6,6 +6,7 @@ from src.services.exceptions import (
     ChannelInaccessibleError,
     DailyLimitReachedError,
     EmbeddingNotAvailableError,
+    InsufficientBalanceError,
     InvalidEmbeddingDimensionsError,
     InvalidModelTypeError,
     JobNotFoundError,
@@ -13,6 +14,7 @@ from src.services.exceptions import (
     ProTierRequiredError,
     SessionExhaustedError,
     ThresholdOutOfRangeError,
+    WalletError,
 )
 from src.services.job_classifier_service import JobClassifierService
 from src.services.job_embedding_service import JobEmbeddingService
@@ -23,8 +25,11 @@ from src.services.matching_service import MatchingService
 from src.services.metrics_service import MetricsService
 from src.services.notification_service import NotificationService
 from src.services.saved_job_service import SavedJobService
+from src.services.subscription_service import SubscriptionService
 from src.services.threshold_service import ThresholdService
 from src.services.telegram_scraper_service import TelegramScraperService
+from src.services.wallet_service import WalletService
+from src.services.wallet_admin_service import WalletAdminService
 
 __all__ = [
     "AdminAlertService",
@@ -36,6 +41,7 @@ __all__ = [
     "EmbeddingNotAvailableError",
     "InvalidEmbeddingDimensionsError",
     "InvalidModelTypeError",
+    "InsufficientBalanceError",
     "JobClassifierService",
     "JobEmbeddingService",
     "JobExtractorService",
@@ -49,7 +55,11 @@ __all__ = [
     "ProTierRequiredError",
     "SavedJobService",
     "SessionExhaustedError",
+    "SubscriptionService",
     "TelegramScraperService",
     "ThresholdOutOfRangeError",
     "ThresholdService",
+    "WalletAdminService",
+    "WalletError",
+    "WalletService",
 ]

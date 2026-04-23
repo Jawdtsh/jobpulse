@@ -128,16 +128,16 @@
         "en": "💳 Subscription Plans\n\n📌 Current plan: {current_tier}"
     },
     "subscribe_free": {
-        "ar": "🆓 Free\n• سير ذاتية: 1\n• تأخير الإشعارات: 24 ساعة\n• خطابات الغلاف: 0",
-        "en": "🆓 Free\n• CVs: 1\n• Notification delay: 24h\n• Cover letters: 0"
+        "ar": "🆓 Free\n• رسائل يومية: 3\n• تأخير الإشعارات: 24 ساعة\n• خطابات الغلاف: 0",
+        "en": "🆓 Free\n• Daily messages: 3\n• Notification delay: 24h\n• Cover letters: 0"
     },
     "subscribe_basic": {
-        "ar": "🥉 Basic - $7/شهر\n• سير ذاتية: 1\n• تأخير الإشعارات: 12 ساعة\n• خطابات الغلاف: 5",
-        "en": "🥉 Basic - $7/mo\n• CVs: 1\n• Notification delay: 12h\n• Cover letters: 5"
+        "ar": "🥉 Basic - $10/شهر\n• رسائل يومية: 15\n• تأخير الإشعارات: 12 ساعة\n• خطابات الغلاف: 5",
+        "en": "🥉 Basic - $10/mo\n• Daily messages: 15\n• Notification delay: 12h\n• Cover letters: 5"
     },
     "subscribe_pro": {
-        "ar": "🥇 Pro - $12/شهر\n• سير ذاتية: 2\n• تأخير الإشعارات: فوري\n• خطابات الغلاف: غير محدود",
-        "en": "🥇 Pro - $12/mo\n• CVs: 2\n• Notification delay: Instant\n• Cover letters: Unlimited"
+        "ar": "🥇 Pro - $25/شهر\n• رسائل يومية: 50\n• تأخير الإشعارات: فوري\n• خطابات الغالف: غير محدود",
+        "en": "🥇 Pro - $25/mo\n• Daily messages: 50\n• Notification delay: Instant\n• Cover letters: Unlimited"
     },
     "error_generic": {
         "ar": "❌ حدث خطأ. حاول لاحقاً.",
@@ -203,6 +203,10 @@
         "ar": "قيد التطوير - الدفع المتاح قريباً",
         "en": "Coming soon - Payment available soon"
     },
+    "cl_purchase_success": {
+        "ar": "✅ تم شراء {generations} توليدات إضافية!",
+        "en": "✅ Purchased {generations} extra generations!"
+    },
     "cl_error_job_deleted": {
         "ar": "❌ الوظيفة المرتبطة بهذا الخطاب لم تعد متاحة.",
         "en": "❌ The job associated with this cover letter is no longer available."
@@ -210,5 +214,213 @@
     "cl_error_decrypt_failed": {
         "ar": "❌ حدث خطأ في قراءة سيرتك الذاتية. حاول رفعها مرة أخرى.",
         "en": "❌ Failed to read your CV. Try re-uploading it."
+    },
+    "wallet_title": {
+        "ar": "💰 محفظتي | My Wallet",
+        "en": "💰 My Wallet"
+    },
+    "wallet_balance": {
+        "ar": "الرصيد الحالي",
+        "en": "Current Balance"
+    },
+    "wallet_deposited": {
+        "ar": "المودع",
+        "en": "Deposited"
+    },
+    "wallet_spent": {
+        "ar": "المُنفق",
+        "en": "Spent"
+    },
+    "wallet_withdrawn": {
+        "ar": "المسحوب",
+        "en": "Withdrawn"
+    },
+    "wallet_choose_payment": {
+        "ar": "💳 اختر طريقة الدفع | Choose Payment Method",
+        "en": "💳 Choose Payment Method"
+    },
+    "wallet_contact_admin": {
+        "ar": "للشحن، يرجى التواصل مع {admin_contact} عبر رسالة خاصة\nTo top up, please contact {admin_contact} via private message",
+        "en": "To top up, please contact {admin_contact} via private message"
+    },
+    "wallet_withdraw_title": {
+        "ar": "💸 سحب الرصيد | Withdraw",
+        "en": "💸 Withdraw Balance"
+    },
+    "wallet_withdraw_instructions": {
+        "ar": "للسحب، يرجى التواصل مع الإدارة عبر رسالة خاصة\nاختر طريقة الاستلام:",
+        "en": "To withdraw, please contact admin via private message\nChoose withdrawal method:"
+    },
+    "wallet_contact_admin_withdraw": {
+        "ar": "أرسل تفاصيل السحب للإدارة وسيتم خصم الرصيد يدوياً",
+        "en": "Send withdrawal details to admin and your balance will be deducted manually"
+    },
+    "wallet_topup_notification": {
+        "ar": "✅ تم شحن رصيدك!",
+        "en": "✅ Your balance has been topped up!"
+    },
+    "subscribe_confirm_title": {
+        "ar": "تأكيد | Confirm",
+        "en": "Confirm Purchase"
+    },
+    "subscribe_month": {
+        "ar": "شهر",
+        "en": "month"
+    },
+    "subscribe_new_balance": {
+        "ar": "الرصيد الجديد",
+        "en": "New Balance"
+    },
+    "subscribe_success": {
+        "ar": "تم | Done",
+        "en": "Done"
+    },
+    "subscribe_activated": {
+        "ar": "تم تفعيل اشتراك {tier}!",
+        "en": "Subscription activated: {tier}"
+    },
+    "subscribe_expires": {
+        "ar": "ينتهي",
+        "en": "Expires"
+    },
+    "subscribe_insufficient": {
+        "ar": "رصيد غير كافٍ | Insufficient Balance",
+        "en": "Insufficient Balance"
+    },
+    "subscribe_need_more": {
+        "ar": "تحتاج ${amount} إضافية لإتمام العملية.",
+        "en": "You need ${amount} more to complete this purchase."
+    },
+    "admin_permission_denied": {
+        "ar": "❌ غير مصرّح | Permission Denied\nهذا الأمر للمشرفين فقط.",
+        "en": "❌ Permission Denied\nThis command is for admins only."
+    },
+    "admin_panel_title": {
+        "ar": "📊 لوحة الإدارة | Admin Panel",
+        "en": "📊 Admin Panel"
+    },
+    "admin_total_users": {
+        "ar": "المستخدمين",
+        "en": "Total Users"
+    },
+    "admin_active_subs": {
+        "ar": "الاشتراكات النشطة",
+        "en": "Active Subscriptions"
+    },
+    "admin_total_revenue": {
+        "ar": "الإيرادات",
+        "en": "Revenue"
+    },
+    "admin_recent_tx": {
+        "ar": "آخر المعاملات (24h)",
+        "en": "Recent Transactions (24h)"
+    },
+    "admin_add_balance_usage": {
+        "ar": "الاستخدام: /admin_add_balance <user_id> <amount> \"<reason>\"\nمثال: /admin_add_balance 123456789 50.00 \"شحن عبر MTN\"",
+        "en": "Usage: /admin_add_balance <user_id> <amount> \"<reason>\"\nExample: /admin_add_balance 123456789 50.00 \"Top-up via MTN\""
+    },
+    "admin_deduct_balance_usage": {
+        "ar": "الاستخدام: /admin_deduct_balance <user_id> <amount> \"<reason>\"\nمثال: /admin_deduct_balance 123456789 30.00 \"سحب USDT\"",
+        "en": "Usage: /admin_deduct_balance <user_id> <amount> \"<reason>\"\nExample: /admin_deduct_balance 123456789 30.00 \"Withdrawal to USDT\""
+    },
+    "admin_invalid_format": {
+        "ar": "❌ تنسيق غير صالح",
+        "en": "❌ Invalid format"
+    },
+    "admin_invalid_amount": {
+        "ar": "❌ المبلغ يجب أن يكون أكبر من صفر",
+        "en": "❌ Amount must be greater than zero"
+    },
+    "admin_user_not_found": {
+        "ar": "❌ المستخدم غير موجود",
+        "en": "❌ User not found"
+    },
+    "admin_balance_added": {
+        "ar": "تمت إضافة الرصيد",
+        "en": "Balance added"
+    },
+    "admin_balance_deducted": {
+        "ar": "تم خصم الرصيد",
+        "en": "Balance deducted"
+    },
+    "admin_insufficient_balance": {
+        "ar": "❌ رصيد المستخدم غير كافٍ",
+        "en": "❌ User has insufficient balance"
+    },
+    "admin_search_usage": {
+        "ar": "الاستخدام: /admin_search <user_id أو اسم>",
+        "en": "Usage: /admin_search <user_id or name>"
+    },
+    "admin_search_results": {
+        "ar": "🔍 نتائج البحث",
+        "en": "🔍 Search Results"
+    },
+    "admin_subscription": {
+        "ar": "الاشتراك",
+        "en": "Subscription"
+    },
+    "admin_stats_title": {
+        "ar": "📈 الإحصائيات | Statistics",
+        "en": "📈 Statistics"
+    },
+    "admin_revenue": {
+        "ar": "الإيرادات",
+        "en": "Revenue"
+    },
+    "admin_total_topups": {
+        "ar": "إجمالي الشحن",
+        "en": "Total Top-ups"
+    },
+    "admin_total_spent": {
+        "ar": "إجمالي الإنفاق",
+        "en": "Total Spent"
+    },
+    "admin_total_withdrawn": {
+        "ar": "إجمالي السحب",
+        "en": "Total Withdrawn"
+    },
+    "admin_subscriptions": {
+        "ar": "الاشتراكات",
+        "en": "Subscriptions"
+    },
+    "admin_active": {
+        "ar": "نشط",
+        "en": "Active"
+    },
+    "admin_users": {
+        "ar": "المستخدمين",
+        "en": "Users"
+    },
+    "admin_total": {
+        "ar": "الإجمالي",
+        "en": "Total"
+    },
+    "admin_with_balance": {
+        "ar": "برصيد",
+        "en": "With Balance"
+    },
+    "admin_no_users": {
+        "ar": "📭 لا يوجد مستخدمين",
+        "en": "📭 No users found"
+    },
+    "admin_no_transactions": {
+        "ar": "📭 لا توجد معاملات",
+        "en": "📭 No transactions found"
+    },
+    "admin_transactions": {
+        "ar": "المعاملات",
+        "en": "Transactions"
+    },
+    "admin_force_expire_usage": {
+        "ar": "الاستخدام: /admin_force_expire <user_id>",
+        "en": "Usage: /admin_force_expire <user_id>"
+    },
+    "admin_subscription_expired": {
+        "ar": "تم إنهاء الاشتراك",
+        "en": "Subscription expired"
+    },
+    "admin_no_active_sub": {
+        "ar": "لا يوجد اشتراك نشط لهذا المستخدم",
+        "en": "No active subscription for this user"
     }
 }
