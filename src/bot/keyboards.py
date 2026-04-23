@@ -1,5 +1,18 @@
+import json
+from pathlib import Path
 from aiogram.types import InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
+
+
+CONFIG_PATH = Path(__file__).parent.parent.parent / "config" / "subscription_tiers.json"
+
+
+def _load_subscription_config():
+    try:
+        with open(CONFIG_PATH, encoding="utf-8") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return {"tiers": []}
 
 
 def main_menu_keyboard() -> InlineKeyboardMarkup:
@@ -133,16 +146,24 @@ def confirm_replace_keyboard() -> InlineKeyboardMarkup:
 
 
 def subscription_keyboard(current_tier: str) -> InlineKeyboardMarkup:
+    config = _load_subscription_config()
+    tiers = {t["id"]: t for t in config["tiers"]}
+
     builder = InlineKeyboardBuilder()
+    basic_tier = tiers["basic"]
+    pro_tier = tiers["pro"]
+
     if current_tier != "basic":
         builder.button(
-            text="🥉 Basic - $10/شهر | Subscribe", callback_data="subscribe:basic"
+            text=f"🥉 Basic - ${basic_tier['price_usd']}/شهر | Subscribe",
+            callback_data="subscribe:basic",
         )
     else:
         builder.button(text="🥉 Basic ✅", callback_data="subscribe:current")
     if current_tier != "pro":
         builder.button(
-            text="🥇 Pro - $25/شهر | Subscribe", callback_data="subscribe:pro"
+            text=f"🥇 Pro - ${pro_tier['price_usd']}/شهر | Subscribe",
+            callback_data="subscribe:pro",
         )
     else:
         builder.button(text="🥇 Pro ✅", callback_data="subscribe:current")
@@ -460,26 +481,4 @@ def admin_user_actions_keyboard(user_id: str) -> InlineKeyboardMarkup:
         callback_data="back_to_menu",
     )
     builder.adjust(2, 2)
-    return builder.as_markup()
-
-
-def generation_packs_keyboard() -> InlineKeyboardMarkup:
-    builder = InlineKeyboardBuilder()
-    builder.button(
-        text="$0.50 - 5 | Small",
-        callback_data="gen_pack:small",
-    )
-    builder.button(
-        text="$1.00 - 12 | Medium",
-        callback_data="gen_pack:medium",
-    )
-    builder.button(
-        text="$3.00 - 40 | Large",
-        callback_data="gen_pack:large",
-    )
-    builder.button(
-        text="🔙 العودة | Back",
-        callback_data="cover_letter:purchase:menu",
-    )
-    builder.adjust(1, 2)
     return builder.as_markup()

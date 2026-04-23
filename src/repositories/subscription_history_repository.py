@@ -14,9 +14,22 @@ class SubscriptionHistoryRepository(AbstractRepository[SubscriptionHistory]):
     async def get_active_by_user(
         self, user_id: uuid.UUID
     ) -> SubscriptionHistory | None:
+        stmt = (
+            select(SubscriptionHistory)
+            .where(
+                SubscriptionHistory.user_id == user_id,
+                SubscriptionHistory.status == "active",
+            )
+            .limit(1)
+        )
+        result = await self._session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def get_by_transaction_id(
+        self, purchase_transaction_id: uuid.UUID
+    ) -> SubscriptionHistory | None:
         stmt = select(SubscriptionHistory).where(
-            SubscriptionHistory.user_id == user_id,
-            SubscriptionHistory.status == "active",
+            SubscriptionHistory.purchase_transaction_id == purchase_transaction_id
         )
         result = await self._session.execute(stmt)
         return result.scalar_one_or_none()

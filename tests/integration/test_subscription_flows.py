@@ -111,7 +111,6 @@ async def test_subscription_expiry_auto_downgrade(db_session):
     test_user = users[0]
 
     sub_history = SubscriptionHistory(
-        id=test_user.id,
         user_id=test_user.id,
         tier="basic",
         start_date=date.today() - timedelta(days=35),

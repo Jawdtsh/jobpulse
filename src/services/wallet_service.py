@@ -24,6 +24,8 @@ TRANSACTION_TYPE_REFUND = "refund"
 PURCHASE_RATE_LIMIT_SECONDS = 5
 RATE_LIMIT_KEY_PREFIX = "wallet:purchase_rate_limit"
 
+_redis: aioredis.Redis | None = None
+
 
 class WalletService:
     def __init__(self, session: AsyncSession):
@@ -31,34 +33,34 @@ class WalletService:
         self._wallet_repo = WalletRepository(session)
         self._tx_repo = TransactionRepository(session)
         self._admin_log_repo = AdminActionLogRepository(session)
+        self._settings = get_settings()
+
+    def _get_redis(self) -> aioredis.Redis:
+        global _redis
+        if _redis is None:
+            _redis = aioredis.from_url(
+                self._settings.redis.redis_url, decode_responses=True
+            )
+        return _redis
 
     async def _check_rate_limit(self, user_id: uuid.UUID) -> bool:
-        settings = get_settings()
         try:
-            redis_client = aioredis.from_url(
-                settings.redis.redis_url, decode_responses=True
-            )
+            redis_client = self._get_redis()
             key = f"{RATE_LIMIT_KEY_PREFIX}:{user_id}"
             existing = await redis_client.get(key)
             if existing:
-                await redis_client.aclose()
                 return False
             await redis_client.setex(key, PURCHASE_RATE_LIMIT_SECONDS, "1")
-            await redis_client.aclose()
             return True
         except Exception:
             logger.warning("Rate limit check failed, allowing purchase")
             return True
 
     async def _release_rate_limit(self, user_id: uuid.UUID) -> None:
-        settings = get_settings()
         try:
-            redis_client = aioredis.from_url(
-                settings.redis.redis_url, decode_responses=True
-            )
+            redis_client = self._get_redis()
             key = f"{RATE_LIMIT_KEY_PREFIX}:{user_id}"
             await redis_client.delete(key)
-            await redis_client.aclose()
         except Exception:
             pass
 
@@ -74,8 +76,8 @@ class WalletService:
         user_id: uuid.UUID,
         amount: Decimal,
         description: str | None = None,
-        admin_id: uuid.UUID | None = None,
-        metadata: dict | None = None,
+        admin_telegram_id: int | None = None,
+        extra_data: dict | None = None,
     ) -> tuple:
         if amount <= 0:
             raise WalletError("Amount must be positive")
@@ -96,13 +98,13 @@ class WalletService:
             balance_before=balance_before,
             balance_after=balance_after,
             description=description,
-            admin_id=admin_id,
-            metadata=metadata,
+            admin_id=None,
+            extra_data=extra_data,
         )
 
-        if admin_id:
+        if admin_telegram_id:
             await self._admin_log_repo.log_action(
-                admin_user_id=admin_id.int >> 96 if hasattr(admin_id, "int") else 0,
+                admin_user_id=admin_telegram_id,
                 action_type="add_balance",
                 target_user_id=user_id,
                 amount_usd=amount,
@@ -125,7 +127,7 @@ class WalletService:
         transaction_type: str,
         description: str | None = None,
         idempotency_key: str | None = None,
-        metadata: dict | None = None,
+        extra_data: dict | None = None,
         is_spending: bool = True,
     ) -> tuple:
         if amount <= 0:
@@ -139,12 +141,13 @@ class WalletService:
         if idempotency_key:
             existing = await self._tx_repo.get_by_idempotency_key(idempotency_key)
             if existing:
-                wallet = await self._wallet_repo.get_by_user_id(user_id)
+                wallet = await self._wallet_repo.get_or_create(user_id)
                 await self._release_rate_limit(user_id)
                 return wallet, existing
 
         wallet = await self.get_or_create_wallet(user_id)
         if wallet.balance_usd < amount:
+            await self._release_rate_limit(user_id)
             raise InsufficientBalanceError(
                 f"Insufficient balance: {wallet.balance_usd} < {amount}"
             )
@@ -155,6 +158,8 @@ class WalletService:
         wallet.balance_usd = balance_after
         if is_spending:
             wallet.total_spent_usd = wallet.total_spent_usd + amount
+        else:
+            wallet.total_withdrawn_usd = wallet.total_withdrawn_usd + amount
         wallet.updated_at = datetime.now(timezone.utc)
         await self._session.flush()
 
@@ -165,7 +170,7 @@ class WalletService:
             balance_before=balance_before,
             balance_after=balance_after,
             description=description,
-            metadata=metadata,
+            extra_data=extra_data,
             idempotency_key=idempotency_key,
         )
 
@@ -187,6 +192,9 @@ class WalletService:
         admin_telegram_id: int,
         reason: str,
     ) -> tuple:
+        if amount <= 0:
+            raise WalletError("Amount must be positive")
+
         wallet = await self.get_or_create_wallet(user_id)
         balance_before = wallet.balance_usd
         balance_after = balance_before + amount
@@ -203,7 +211,8 @@ class WalletService:
             balance_before=balance_before,
             balance_after=balance_after,
             description=reason,
-            metadata={"admin_telegram_id": admin_telegram_id},
+            admin_id=None,
+            extra_data={"admin_telegram_id": admin_telegram_id},
         )
 
         await self._admin_log_repo.log_action(
@@ -231,6 +240,9 @@ class WalletService:
         admin_telegram_id: int,
         reason: str,
     ) -> tuple:
+        if amount <= 0:
+            raise WalletError("Amount must be positive")
+
         wallet = await self.get_or_create_wallet(user_id)
         if wallet.balance_usd < amount:
             raise InsufficientBalanceError(
@@ -252,7 +264,7 @@ class WalletService:
             balance_before=balance_before,
             balance_after=balance_after,
             description=reason,
-            metadata={"admin_telegram_id": admin_telegram_id},
+            extra_data={"admin_telegram_id": admin_telegram_id},
         )
 
         await self._admin_log_repo.log_action(

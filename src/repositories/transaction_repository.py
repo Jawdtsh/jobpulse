@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
 from sqlalchemy import select, func
@@ -36,6 +36,12 @@ class TransactionRepository(AbstractRepository[WalletTransaction]):
         result = await self._session.execute(stmt)
         return result.scalar() or 0
 
+    async def count_recent(self, hours: int = 24) -> int:
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+        stmt = select(func.count()).where(WalletTransaction.created_at >= cutoff)
+        result = await self._session.execute(stmt)
+        return result.scalar_one()
+
     async def create_transaction(
         self,
         user_id: uuid.UUID,
@@ -46,7 +52,7 @@ class TransactionRepository(AbstractRepository[WalletTransaction]):
         status: str = "completed",
         description: str | None = None,
         admin_id: uuid.UUID | None = None,
-        metadata: dict | None = None,
+        extra_data: dict | None = None,
         idempotency_key: str | None = None,
     ) -> WalletTransaction:
         now = datetime.now(timezone.utc)
@@ -59,7 +65,7 @@ class TransactionRepository(AbstractRepository[WalletTransaction]):
             status=status,
             description=description,
             admin_id=admin_id,
-            metadata=metadata,
+            extra_data=extra_data,
             created_at=now,
             idempotency_key=idempotency_key,
         )

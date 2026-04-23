@@ -2,7 +2,7 @@ import uuid
 from datetime import date
 from typing import TYPE_CHECKING
 
-from sqlalchemy import Date, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import Date, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
 
@@ -28,4 +28,4 @@ class UserQuotaTracking(Base, UUIDPrimaryKeyMixin):
 
     user: Mapped["User"] = relationship("User")
 
-    __table_args__ = (UniqueConstraint("user_id", "date", name="uq_user_quota_date"),)
+    __table_args__ = ()

@@ -1,10 +1,12 @@
 import logging
 
 from aiogram import Router, F
-from aiogram.filters import Command
+from aiogram.filters import Command, StateFilter
+from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
 
 from src.bot.keyboards import subscription_keyboard, subscription_confirm_keyboard
+from src.bot.states import SubscribeState
 from src.bot.utils.i18n import t, get_locale
 
 logger = logging.getLogger(__name__)
@@ -60,7 +62,7 @@ async def cmd_subscribe(message: Message):
 
 
 @router.callback_query(F.data.startswith("subscribe:"))
-async def callback_subscribe_tier(callback: CallbackQuery):
+async def callback_subscribe_tier(callback: CallbackQuery, state: FSMContext):
     locale = get_locale(callback.from_user.language_code)
     tier_id = callback.data.split(":")[1]
 
@@ -109,11 +111,57 @@ async def callback_subscribe_tier(callback: CallbackQuery):
             "\n".join(lines),
             reply_markup=subscription_confirm_keyboard(tier_id),
         )
-    await callback.answer()
+
+        await state.update_data(tier_id=tier_id)
+        await state.set_state(SubscribeState.confirm)
+        await callback.answer()
 
 
-@router.callback_query(F.data == "confirm:yes")
-async def callback_confirm_purchase(callback: CallbackQuery):
+async def _validate_purchase(user, tier_id, wallet_svc, sub_svc, locale):
+    tier_config = sub_svc.get_tier_config(tier_id)
+    if not tier_config:
+        raise ValueError("Invalid tier")
+    wallet = await wallet_svc.get_or_create_wallet(user.id)
+    return tier_config, wallet
+
+
+async def _execute_deduction(user, tier_id, wallet_svc, sub_svc):
+    subscription = await sub_svc.purchase_tier(
+        user_id=user.id,
+        tier_id=tier_id,
+        wallet_service=wallet_svc,
+    )
+    return subscription
+
+
+async def _display_result(callback, locale, tier_config, subscription, wallet, tier_id):
+    tier_name = (
+        tier_config.get(f"name_{locale}", tier_config.get("name_en", tier_id))
+        if tier_config
+        else tier_id
+    )
+    await callback.message.edit_text(
+        f"✅ {t('subscribe_success', locale)}\n\n"
+        f"🎉 {t('subscribe_activated', locale, tier=tier_name)}\n"
+        f"📅 {t('subscribe_expires', locale)}: {subscription.end_date}",
+        reply_markup=subscription_back_keyboard(),
+    )
+
+
+async def _display_insufficient(callback, locale, tier_config, wallet):
+    from src.bot.keyboards import wallet_top_up_keyboard
+
+    needed = tier_config["price_usd"] - float(wallet.balance_usd) if tier_config else 0
+    await callback.message.edit_text(
+        f"❌ {t('subscribe_insufficient', locale)}\n\n"
+        f"{t('subscribe_need_more', locale, amount=f'{needed:.2f}')}\n"
+        f"{t('wallet_balance', locale)}: ${wallet.balance_usd:.2f}",
+        reply_markup=wallet_top_up_keyboard(),
+    )
+
+
+@router.callback_query(F.data == "confirm:yes", StateFilter(SubscribeState.confirm))
+async def callback_confirm_purchase(callback: CallbackQuery, state: FSMContext):
     locale = get_locale(callback.from_user.language_code)
 
     from src.database import get_async_session
@@ -132,61 +180,40 @@ async def callback_confirm_purchase(callback: CallbackQuery):
         wallet_svc = WalletService(session)
         sub_svc = SubscriptionService(session)
 
-        active_sub = await sub_svc.get_active_subscription(user.id)
-        if active_sub:
-            tier_id = active_sub.tier
-        else:
-            tier_id = "basic"
+        state_data = await state.get_data()
+        tier_id = state_data.get("tier_id")
 
-        tier_config = sub_svc.get_tier_config(tier_id)
+        if not tier_id:
+            await callback.answer("Error: Tier not selected", show_alert=True)
+            return
+
+        tier_config, wallet = await _validate_purchase(
+            user, tier_id, wallet_svc, sub_svc, locale
+        )
 
         try:
-            subscription = await sub_svc.purchase_tier(
-                user_id=user.id,
-                tier_id=tier_id,
-                wallet_service=wallet_svc,
-            )
+            subscription = await _execute_deduction(user, tier_id, wallet_svc, sub_svc)
             await session.commit()
-
-            tier_name = (
-                tier_config.get(f"name_{locale}", tier_config.get("name_en", tier_id))
-                if tier_config
-                else tier_id
+            await _display_result(
+                callback, locale, tier_config, subscription, wallet, tier_id
             )
-
-            await callback.message.edit_text(
-                f"✅ {t('subscribe_success', locale)}\n\n"
-                f"🎉 {t('subscribe_activated', locale, tier=tier_name)}\n"
-                f"📅 {t('subscribe_expires', locale)}: {subscription.end_date}",
-                reply_markup=subscription_back_keyboard(),
-            )
+            await state.clear()
         except InsufficientBalanceError:
-            wallet = await wallet_svc.get_or_create_wallet(user.id)
-            await session.commit()
-
-            from src.bot.keyboards import wallet_top_up_keyboard
-
-            needed = (
-                tier_config["price_usd"] - float(wallet.balance_usd)
-                if tier_config
-                else 0
-            )
-            await callback.message.edit_text(
-                f"❌ {t('subscribe_insufficient', locale)}\n\n"
-                f"{t('subscribe_need_more', locale, amount=f'{needed:.2f}')}\n"
-                f"{t('wallet_balance', locale)}: ${wallet.balance_usd:.2f}",
-                reply_markup=wallet_top_up_keyboard(),
-            )
+            await _display_insufficient(callback, locale, tier_config, wallet)
+            await state.clear()
         except WalletError as e:
             await callback.message.edit_text(f"❌ {e.message}")
+            await state.clear()
         except Exception as e:
             logger.exception("Purchase failed: %s", e)
             await callback.message.edit_text(t("error_generic", locale))
+            await state.clear()
 
 
 @router.callback_query(F.data == "confirm:no")
-async def callback_cancel_purchase(callback: CallbackQuery):
+async def callback_cancel_purchase(callback: CallbackQuery, state: FSMContext):
     locale = get_locale(callback.from_user.language_code)
+    await state.clear()
     await callback.message.edit_text(t("cancel", locale))
     await callback.answer()
 
@@ -200,9 +227,9 @@ def subscription_back_keyboard():
 
 
 @router.callback_query(F.data.startswith("upgrade_plan:"))
-async def callback_upgrade(callback: CallbackQuery):
+async def callback_upgrade(callback: CallbackQuery, state: FSMContext):
     tier_id = callback.data.split(":")[1]
     if tier_id == "current":
         await callback.answer()
         return
-    await callback_subscribe_tier(callback)
+    await callback_subscribe_tier(callback, state)

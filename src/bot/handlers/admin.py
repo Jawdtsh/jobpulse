@@ -449,21 +449,31 @@ async def cmd_admin_force_expire(message: Message):
 @router.callback_query(F.data.startswith("admin_add_balance:"))
 async def callback_admin_add_balance(callback: CallbackQuery):
     locale = get_locale(callback.from_user.language_code)
+    if not _ensure_admin(callback.from_user.id):
+        await callback.answer(t("admin_permission_denied", locale), show_alert=True)
+        return
     await callback.answer(t("admin_add_balance_usage", locale), show_alert=True)
 
 
 @router.callback_query(F.data.startswith("admin_deduct_balance:"))
 async def callback_admin_deduct_balance(callback: CallbackQuery):
     locale = get_locale(callback.from_user.language_code)
+    if not _ensure_admin(callback.from_user.id):
+        await callback.answer(t("admin_permission_denied", locale), show_alert=True)
+        return
     await callback.answer(t("admin_deduct_balance_usage", locale), show_alert=True)
 
 
 @router.callback_query(F.data.startswith("admin_tx_history:"))
 async def callback_admin_tx_history(callback: CallbackQuery):
     locale = get_locale(callback.from_user.language_code)
+    if not _ensure_admin(callback.from_user.id):
+        await callback.answer(t("admin_permission_denied", locale), show_alert=True)
+        return
     user_id_str = callback.data.split(":")[1]
 
     from src.database import get_async_session
+    from src.services.wallet_admin_service import WalletAdminService
 
     async for session in get_async_session():
         admin_svc = WalletAdminService(session)

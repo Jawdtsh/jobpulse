@@ -6,6 +6,58 @@ import pytest
 
 from src.services.subscription_service import SubscriptionService
 
+_test_config = {
+    "tiers": [
+        {
+            "id": "free",
+            "price_usd": 0,
+            "duration_days": 0,
+            "daily_generations": 3,
+            "name_ar": "مجاني",
+            "name_en": "Free",
+        },
+        {
+            "id": "basic",
+            "price_usd": 10,
+            "duration_days": 30,
+            "daily_generations": 15,
+            "name_ar": "أساسي",
+            "name_en": "Basic",
+        },
+        {
+            "id": "pro",
+            "price_usd": 25,
+            "duration_days": 30,
+            "daily_generations": 50,
+            "name_ar": "احترافي",
+            "name_en": "Pro",
+        },
+    ],
+    "generation_packs": [
+        {
+            "id": "small",
+            "price_usd": 0.50,
+            "generations": 5,
+            "name_ar": "صغيرة",
+            "name_en": "Small",
+        },
+        {
+            "id": "medium",
+            "price_usd": 1.00,
+            "generations": 12,
+            "name_ar": "متوسطة",
+            "name_en": "Medium",
+        },
+        {
+            "id": "large",
+            "price_usd": 3.00,
+            "generations": 40,
+            "name_ar": "كبيرة",
+            "name_en": "Large",
+        },
+    ],
+}
+
 
 @pytest.fixture
 def mock_session():
@@ -23,7 +75,16 @@ def mock_user_repo():
 
 
 @pytest.fixture
-def service(mock_session, mock_sub_history_repo, mock_user_repo):
+def mock_config():
+    with patch(
+        "src.services.subscription_service._load_tiers_config",
+        return_value=_test_config,
+    ):
+        yield _test_config
+
+
+@pytest.fixture
+def service(mock_session, mock_sub_history_repo, mock_user_repo, mock_config):
     svc = SubscriptionService(mock_session)
     svc._sub_history_repo = mock_sub_history_repo
     svc._user_repo = mock_user_repo
@@ -117,12 +178,18 @@ async def test_purchase_tier_idempotency(
 async def test_purchase_tier_already_active(service, mock_sub_history_repo):
     user_id = uuid.uuid4()
     active_sub = MagicMock()
-    mock_sub_history_repo.get_active_by_user = AsyncMock(return_value=active_sub)
+    mock_sub_history_repo.get_by_transaction_id = AsyncMock(return_value=active_sub)
 
-    from src.services.exceptions import WalletError
+    wallet_mock = MagicMock()
+    wallet_mock.balance_usd = Decimal("50.00")
+    tx_mock = MagicMock()
+    tx_mock.id = uuid.uuid4()
 
-    with pytest.raises(WalletError, match="already has an active"):
-        await service.purchase_tier(user_id, "basic", AsyncMock())
+    wallet_svc = AsyncMock()
+    wallet_svc.deduct_balance = AsyncMock(return_value=(wallet_mock, tx_mock))
+
+    result = await service.purchase_tier(user_id, "basic", wallet_svc)
+    assert result is active_sub
 
 
 @pytest.mark.asyncio

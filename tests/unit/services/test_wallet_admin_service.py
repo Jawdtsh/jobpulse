@@ -26,11 +26,19 @@ def mock_admin_log_repo():
 
 
 @pytest.fixture
-def service(mock_session, mock_user_repo, mock_wallet_repo, mock_admin_log_repo):
+def mock_tx_repo():
+    return AsyncMock()
+
+
+@pytest.fixture
+def service(
+    mock_session, mock_user_repo, mock_wallet_repo, mock_admin_log_repo, mock_tx_repo
+):
     svc = WalletAdminService(mock_session)
     svc._user_repo = mock_user_repo
     svc._wallet_repo = mock_wallet_repo
     svc._admin_log_repo = mock_admin_log_repo
+    svc._tx_repo = mock_tx_repo
     return svc
 
 
@@ -76,7 +84,7 @@ async def test_get_user_info_not_found(service, mock_user_repo):
 
 
 @pytest.mark.asyncio
-async def test_search_users(service, mock_user_repo, mock_wallet_repo):
+async def test_search_users(mock_session, service, mock_user_repo, mock_wallet_repo):
     from decimal import Decimal
     import uuid
 
@@ -88,7 +96,6 @@ async def test_search_users(service, mock_user_repo, mock_wallet_repo):
     user1.subscription_tier = "basic"
 
     mock_user_repo.get_by_telegram_id = AsyncMock(return_value=None)
-    from sqlalchemy import select
 
     mock_session.execute = AsyncMock()
     mock_session.execute.return_value.scalars.return_value.all.return_value = [user1]
@@ -104,8 +111,6 @@ async def test_search_users(service, mock_user_repo, mock_wallet_repo):
 @pytest.mark.asyncio
 async def test_get_recent_transactions_with_user(service):
     import uuid
-
-    from src.repositories.transaction_repository import TransactionRepository
 
     tx_repo_mock = AsyncMock()
     tx1 = MagicMock()
@@ -128,7 +133,7 @@ async def test_get_recent_transactions_with_user(service):
 
 
 @pytest.mark.asyncio
-async def test_get_stats(service):
+async def test_get_stats(mock_session, service, mock_tx_repo):
     from decimal import Decimal
 
     mock_session.execute = AsyncMock()
@@ -154,20 +159,12 @@ async def test_get_stats(service):
     active_subs_result = MagicMock()
     active_subs_result.scalar.return_value = 30
 
-    mock_session.execute = AsyncMock(
-        side_effect=[
-            total_users_result,
-            users_with_balance_result,
-            tier_result,
-            topup_result,
-            spent_result,
-            withdrawn_result,
-            active_subs_result,
-        ]
-    )
-    mock_admin_log_repo.count_recent = AsyncMock(return_value=5)
+    recent_tx_result = MagicMock()
+    recent_tx_result.scalar.return_value = 25
 
     result = await service.get_stats()
     assert result["total_users"] == 100
     assert result["users_with_balance"] == 30
     assert result["active_subscriptions"] == 30
+    assert result["recent_transactions"] == 25
+    mock_tx_repo.count_recent.assert_called_once_with(hours=24)

@@ -70,10 +70,6 @@ class SubscriptionService:
         if price <= 0:
             raise WalletError("Cannot purchase free tier")
 
-        existing = await self._sub_history_repo.get_active_by_user(user_id)
-        if existing:
-            raise WalletError("User already has an active subscription")
-
         idempotency_key = f"sub:{user_id}:{tier_id}:{date.today().isoformat()}"
 
         wallet, tx = await wallet_service.deduct_balance(
@@ -82,8 +78,12 @@ class SubscriptionService:
             transaction_type="subscription_purchase",
             description=f"Subscription purchase: {tier_config.get('name_en', tier_id)}",
             idempotency_key=idempotency_key,
-            metadata={"tier": tier_id, "duration_days": tier_config["duration_days"]},
+            extra_data={"tier": tier_id, "duration_days": tier_config["duration_days"]},
         )
+
+        existing_sub = await self._sub_history_repo.get_by_transaction_id(tx.id)
+        if existing_sub:
+            return existing_sub
 
         now = datetime.now(timezone.utc)
         start = now.date()
@@ -129,19 +129,20 @@ class SubscriptionService:
 
         idempotency_key = f"gen_pack:{user_id}:{pack_id}:{date.today().isoformat()}"
 
+        before_call = datetime.now(timezone.utc)
         wallet, tx = await wallet_service.deduct_balance(
             user_id=user_id,
             amount=price,
             transaction_type="generation_purchase",
             description=f"Generation pack: {pack_config.get('name_en', pack_id)} ({generations} gens)",
             idempotency_key=idempotency_key,
-            metadata={
+            extra_data={
                 "pack_id": pack_id,
                 "generations": generations,
             },
         )
 
-        if quota_service:
+        if quota_service and tx.created_at >= before_call:
             from src.services.quota_service import get_damascus_date
 
             damascus_date = get_damascus_date()

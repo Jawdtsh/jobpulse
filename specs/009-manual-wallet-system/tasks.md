@@ -277,4 +277,45 @@ With multiple developers:
 - Commit after each task or logical group
 - Stop at any checkpoint to validate story independently
 - Verify tests fail before implementing
+
+---
+
+## Phase 12: Bug Fixes
+
+### Purpose
+Fix critical bugs identified in Prompt 1 and Prompt 2
+
+**Note**: These fixes are post-implementation corrections for issues discovered after the initial implementation
+
+### Bug Fixes from Prompt 1 - Critical Issues
+
+- [X] BF001 [P] Fix Fix 1 — src/bot/handlers/subscription.py (C-001): Store tier_id in FSM state
+- [X] BF002 [P] Fix Fix 2 — src/models/admin_action_log.py + src/repositories/transaction_repository.py (C-002): Rename metadata to extra_data
+- [X] BF003 [P] Fix Fix 3 — src/services/wallet_service.py (C-003): Fix race condition in deduct_balance
+- [X] BF004 [P] Fix Fix 4 — Migration 016 (C-005): Remove UniqueConstraint from model
+- [X] BF005 [P] Fix Fix 5 — Migration 015 downgrade (C-006): Add DELETE before alter_column
+- [X] BF006 [P] Fix Fix 6 — Migration 014 downgrade (H-008): Change ondelete to CASCADE
+
+### Bug Fixes from Prompt 2 - Service Layer Bugs
+
+- [X] BF001 [P] Fix Fix 1(a) — tests/unit/services/test_wallet_admin_service.py (I-006): Add mock_session parameter
+- [X] BF002 [P] Fix Fix 1(b) — tests/unit/services/test_wallet_admin_service.py (I-006): Add mock_session parameter
+- [X] BF003 [P] Fix Fix 2 — tests/integration/test_subscription_flows.py (C-005): Remove manual id assignment
+- [X] BF004 [P] Fix Fix 3 — src/models/admin_action_log.py (I-001): Add Mapped type annotations
+- [X] BF005 [P] Fix Fix 4 — tests/unit/services/test_subscription_service.py (I-007): Mock _load_tiers_config
+- [X] BF006 [P] Fix Fix 5 — src/services/wallet_admin_service.py (I-003): Optimize search_users with single JOIN query
+- [X] BF007 [P] Fix Fix 6(a) — spec.md FR-023: Verify implementation matches spec (already correct)
+- [X] BF008 [P] Fix Fix 6(b) — tasks.md: Add new bug fix tasks
+
+### Bug Fixes from Prompt 3 - Critical Security & Integrity Issues
+
+- [X] BF009 [P] Fix Fix 1 — src/bot/handlers/admin.py (CR-1): Add _ensure_admin check to three admin callbacks
+- [X] BF010 [P] Fix Fix 2 — src/services/subscription_service.py (CR-5): Fix double-crediting in purchase_generation_pack
+- [X] BF011 [P] Fix Fix 3 — src/services/subscription_service.py (CR-4): Fix idempotency gap in purchase_tier
+- [X] BF012 [P] Fix Fix 4 — src/services/wallet_service.py (CR-6a): Ledger integrity - fix is_spending=False branch
+- [X] BF013 [P] Fix Fix 4(b) — src/services/wallet_service.py (CR-6b): Ledger integrity - release rate limit on InsufficientBalanceError
+- [X] BF014 [P] Fix Fix 5 — src/services/wallet_service.py (CR-8): Add validation to admin_add_balance and admin_deduct_balance
+- [X] BF015 [P] Fix Fix 6(c) — src/repositories/subscription_history_repository.py (CR-4): Add get_by_transaction_id method
+- [X] BF016 [P] Fix Fix 6(a) — spec.md FR-023: Verify implementation matches spec (already correct)
+- [X] BF017 [P] Fix Fix 6(b) — tasks.md: Add new bug fix tasks
 - Avoid: vague tasks, same file conflicts, cross-story dependencies that break independence

@@ -128,16 +128,16 @@
         "en": "💳 Subscription Plans\n\n📌 Current plan: {current_tier}"
     },
     "subscribe_free": {
-        "ar": "🆓 Free\n• سير ذاتية: 1\n• تأخير الإشعارات: 24 ساعة\n• خطابات الغلاف: 0",
-        "en": "🆓 Free\n• CVs: 1\n• Notification delay: 24h\n• Cover letters: 0"
+        "ar": "🆓 Free\n• رسائل يومية: 3\n• تأخير الإشعارات: 24 ساعة\n• خطابات الغلاف: 0",
+        "en": "🆓 Free\n• Daily messages: 3\n• Notification delay: 24h\n• Cover letters: 0"
     },
     "subscribe_basic": {
-        "ar": "🥉 Basic - $7/شهر\n• سير ذاتية: 1\n• تأخير الإشعارات: 12 ساعة\n• خطابات الغلاف: 5",
-        "en": "🥉 Basic - $7/mo\n• CVs: 1\n• Notification delay: 12h\n• Cover letters: 5"
+        "ar": "🥉 Basic - $10/شهر\n• رسائل يومية: 15\n• تأخير الإشعارات: 12 ساعة\n• خطابات الغلاف: 5",
+        "en": "🥉 Basic - $10/mo\n• Daily messages: 15\n• Notification delay: 12h\n• Cover letters: 5"
     },
     "subscribe_pro": {
-        "ar": "🥇 Pro - $12/شهر\n• سير ذاتية: 2\n• تأخير الإشعارات: فوري\n• خطابات الغلاف: غير محدود",
-        "en": "🥇 Pro - $12/mo\n• CVs: 2\n• Notification delay: Instant\n• Cover letters: Unlimited"
+        "ar": "🥇 Pro - $25/شهر\n• رسائل يومية: 50\n• تأخير الإشعارات: فوري\n• خطابات الغالف: غير محدود",
+        "en": "🥇 Pro - $25/mo\n• Daily messages: 50\n• Notification delay: Instant\n• Cover letters: Unlimited"
     },
     "error_generic": {
         "ar": "❌ حدث خطأ. حاول لاحقاً.",

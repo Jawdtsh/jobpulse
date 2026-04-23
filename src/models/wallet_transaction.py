@@ -30,7 +30,7 @@ class WalletTransaction(Base, UUIDPrimaryKeyMixin):
     admin_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), nullable=True
     )
-    metadata_: Mapped[dict | None] = mapped_column("metadata", JSONB, nullable=True)
+    extra_data: Mapped[dict | None] = mapped_column("extra_data", JSONB, nullable=True)
     created_at = mapped_column(
         DateTime(timezone=True),
         nullable=False,

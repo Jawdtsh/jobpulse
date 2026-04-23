@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import uuid
 from decimal import Decimal
@@ -12,6 +13,7 @@ from src.models.subscription_history import SubscriptionHistory
 from src.repositories.user_repository import UserRepository
 from src.repositories.wallet_repository import WalletRepository
 from src.repositories.admin_action_log_repository import AdminActionLogRepository
+from src.repositories.transaction_repository import TransactionRepository
 from config.settings import get_settings
 
 logger = logging.getLogger(__name__)
@@ -23,11 +25,57 @@ class WalletAdminService:
         self._user_repo = UserRepository(session)
         self._wallet_repo = WalletRepository(session)
         self._admin_log_repo = AdminActionLogRepository(session)
+        self._tx_repo = TransactionRepository(session)
 
     @staticmethod
     def is_admin(telegram_id: int) -> bool:
         settings = get_settings()
         return telegram_id in settings.wallet.admin_user_ids
+
+    async def _count_users(self) -> int:
+        stmt = select(func.count(User.id))
+        result = await self._session.execute(stmt)
+        return result.scalar() or 0
+
+    async def _count_users_with_balance(self) -> int:
+        stmt = select(func.count(UserWallet.id)).where(UserWallet.balance_usd > 0)
+        result = await self._session.execute(stmt)
+        return result.scalar() or 0
+
+    async def _count_tiers(self) -> dict:
+        stmt = select(User.subscription_tier, func.count(User.id)).group_by(
+            User.subscription_tier
+        )
+        result = await self._session.execute(stmt)
+        return dict(result.all())
+
+    async def _sum_transactions(self, tx_type: str) -> Decimal:
+        stmt = select(func.sum(WalletTransaction.amount_usd)).where(
+            WalletTransaction.type == tx_type,
+            WalletTransaction.status == "completed",
+        )
+        result = await self._session.execute(stmt)
+        return result.scalar() or Decimal("0")
+
+    async def _sum_transactions_subscription(self) -> Decimal:
+        stmt = select(func.sum(WalletTransaction.amount_usd)).where(
+            WalletTransaction.type.in_(
+                [
+                    "subscription_purchase",
+                    "generation_purchase",
+                ]
+            ),
+            WalletTransaction.status == "completed",
+        )
+        result = await self._session.execute(stmt)
+        return result.scalar() or Decimal("0")
+
+    async def _count_active_subscriptions(self) -> int:
+        stmt = select(func.count(SubscriptionHistory.id)).where(
+            SubscriptionHistory.status == "active"
+        )
+        result = await self._session.execute(stmt)
+        return result.scalar() or 0
 
     async def get_user_info(self, telegram_id: int) -> dict | None:
         user = await self._user_repo.get_by_telegram_id(telegram_id)
@@ -66,63 +114,41 @@ class WalletAdminService:
         return await self.get_user_info(user.telegram_id)
 
     async def get_stats(self) -> dict:
-        total_users = await self._session.execute(select(func.count(User.id)))
-        users_with_balance = await self._session.execute(
-            select(func.count(UserWallet.id)).where(UserWallet.balance_usd > 0)
+        (
+            total_users,
+            users_with_balance,
+            tier_counts,
+            total_topups,
+            total_spent,
+            total_withdrawn,
+            active_subs,
+            recent_tx_count,
+        ) = await asyncio.gather(
+            self._count_users(),
+            self._count_users_with_balance(),
+            self._count_tiers(),
+            self._sum_transactions("top_up"),
+            self._sum_transactions_subscription(),
+            self._sum_transactions("withdrawal"),
+            self._count_active_subscriptions(),
+            self._tx_repo.count_recent(hours=24),
         )
-        tier_counts_result = await self._session.execute(
-            select(User.subscription_tier, func.count(User.id)).group_by(
-                User.subscription_tier
-            )
-        )
-        tier_counts = dict(tier_counts_result.all())
-
-        total_topups = await self._session.execute(
-            select(func.sum(WalletTransaction.amount_usd)).where(
-                WalletTransaction.type == "top_up",
-                WalletTransaction.status == "completed",
-            )
-        )
-        total_spent = await self._session.execute(
-            select(func.sum(WalletTransaction.amount_usd)).where(
-                WalletTransaction.type.in_(
-                    [
-                        "subscription_purchase",
-                        "generation_purchase",
-                    ]
-                ),
-                WalletTransaction.status == "completed",
-            )
-        )
-        total_withdrawn = await self._session.execute(
-            select(func.sum(WalletTransaction.amount_usd)).where(
-                WalletTransaction.type == "withdrawal",
-                WalletTransaction.status == "completed",
-            )
-        )
-
-        active_subs = await self._session.execute(
-            select(func.count(SubscriptionHistory.id)).where(
-                SubscriptionHistory.status == "active"
-            )
-        )
-
-        recent_tx_count = await self._admin_log_repo.count_recent(hours=24)
 
         return {
-            "total_users": total_users.scalar() or 0,
-            "users_with_balance": users_with_balance.scalar() or 0,
+            "total_users": total_users,
+            "users_with_balance": users_with_balance,
             "tier_counts": tier_counts,
-            "total_topups": total_topups.scalar() or Decimal("0"),
-            "total_spent": total_spent.scalar() or Decimal("0"),
-            "total_withdrawn": total_withdrawn.scalar() or Decimal("0"),
-            "active_subscriptions": active_subs.scalar() or 0,
+            "total_topups": total_topups,
+            "total_spent": total_spent,
+            "total_withdrawn": total_withdrawn,
+            "active_subscriptions": active_subs,
             "recent_transactions": recent_tx_count,
         }
 
     async def search_users(self, query: str, limit: int = 10) -> list[dict]:
         stmt = (
-            select(User)
+            select(User, UserWallet.balance_usd)
+            .outerjoin(UserWallet, User.id == UserWallet.user_id)
             .where(
                 (User.username.ilike(f"%{query}%"))
                 | (User.first_name.ilike(f"%{query}%"))
@@ -130,11 +156,10 @@ class WalletAdminService:
             .limit(limit)
         )
         result = await self._session.execute(stmt)
-        users = result.scalars().all()
+        rows = result.all()
 
         user_infos = []
-        for user in users:
-            wallet = await self._wallet_repo.get_by_user_id(user.id)
+        for user, balance_usd in rows:
             user_infos.append(
                 {
                     "user_id": user.id,
@@ -142,7 +167,7 @@ class WalletAdminService:
                     "username": user.username,
                     "first_name": user.first_name,
                     "tier": user.subscription_tier,
-                    "balance": wallet.balance_usd if wallet else Decimal("0"),
+                    "balance": balance_usd if balance_usd is not None else Decimal("0"),
                 }
             )
         return user_infos
